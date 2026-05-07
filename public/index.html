@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -308,8 +309,8 @@ tbody tr:hover td{background:var(--s2);}
 <div class="tab-page" id="tab-checkin">
   <div class="grid2" style="gap:12px;">
     <div>
-      <div style="font-weight:700;font-size:1rem;margin-bottom:4px;">Daily check-in</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Your subjective readiness is fed into the coach's planning</div>
+      <div style="font-weight:700;font-size:1rem;margin-bottom:4px;">Daily check-in → AI Coach</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Tell the coach how you feel. Your text is evaluated and your plan is adjusted.</div>
       <div class="checkin-area">
         <div class="card-title">How do you feel today?</div>
         <div class="readiness-btns">
@@ -319,13 +320,20 @@ tbody tr:hover td{background:var(--s2);}
           <button class="rb rb-tired" onclick="selectReadiness('tired',this)">🔴 Tired / fatigued</button>
           <button class="rb rb-injured" onclick="selectReadiness('injured',this)">🟣 Niggle / injury</button>
         </div>
-        <textarea class="checkin-note" id="checkin-note" placeholder="Any notes? e.g. left knee a bit tight, legs heavy from yesterday, slept poorly..."></textarea>
-        <button class="checkin-submit" onclick="submitCheckin()">Save check-in</button>
+        <textarea class="checkin-note" id="checkin-note" placeholder="Describe how you feel in detail — e.g. 'left knee a bit tight since yesterday's run, quads feel heavy, slept only 6h'. The coach reads this and adjusts your plan."></textarea>
+        <button class="checkin-submit" id="checkin-btn" onclick="submitCheckin()">Send to coach →</button>
+      </div>
+
+      <!-- Coach response box -->
+      <div id="coach-response-box" style="display:none;margin-top:12px;background:rgba(34,212,164,.06);border:1px solid rgba(34,212,164,.25);border-radius:10px;padding:14px 16px;">
+        <div style="font-size:10px;font-family:var(--mono);color:var(--accent);letter-spacing:.06em;margin-bottom:8px;">🤖 COACH RESPONSE</div>
+        <div id="coach-response-text" style="font-size:13px;color:#a7f3d0;line-height:1.7;white-space:pre-wrap;"></div>
       </div>
     </div>
+
     <div>
       <div style="font-weight:700;font-size:1rem;margin-bottom:4px;">Check-in history</div>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Last 10 entries</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Saved locally in your browser</div>
       <div class="checkin-history" id="checkin-history"></div>
     </div>
   </div>
@@ -530,55 +538,128 @@ function renderRaceBanners(){
 
 function renderKPIVitals(data){
   const s = data.daily_summary||{};
-  const sleepDTO = data.sleep?.dailySleepDTO || data.sleep?.dailySleepDTO || {};
-  // Garmin nests sleep score at dailySleepDTO.sleepScores.overall.value
-  const sleepScore = sleepDTO.sleepScores?.overall?.value
-    ?? data.sleep?.sleepScores?.overall?.value
-    ?? s.averageSleepingStressLevel  // fallback
-    ?? 0;
-  const sleepQuality = sleepDTO.sleepScores?.overall?.qualifierKey ?? 'Unknown';
-  const hrv = data.hrv?.hrvSummary||{};
-  const bb = s.bodyBatteryMostRecentValue??40;
-  const hr = s.restingHeartRate??44;
-  const hrv7 = hrv.weeklyAvg??61;
-  const hrvLast = hrv.lastNightAvg??66;
-  const stress = s.averageStressLevel??17;
+
+  // Sleep: data.sleep.dailySleepDTO.sleepScores.overall.value
+  const sleepDTO = data.sleep?.dailySleepDTO || {};
+  const sleepScore = sleepDTO.sleepScores?.overall?.value ?? 0;
+  const sleepQuality = (sleepDTO.sleepScores?.overall?.qualifierKey ?? 'Unknown')
+    .charAt(0) + (sleepDTO.sleepScores?.overall?.qualifierKey ?? '').slice(1).toLowerCase();
+  const sleepDurSec = sleepDTO.sleepTimeSeconds ?? 0;
+
+  // HRV: data.hrv.hrvSummary
+  const hrv = data.hrv?.hrvSummary || {};
+  const hrvLast = hrv.lastNightAvg ?? null;   // last night average
+  const hrv7    = hrv.weeklyAvg ?? null;       // 7-day average
+  const hrvStatus = hrv.status ?? '—';
+
+  const bb     = s.bodyBatteryMostRecentValue ?? null;
+  const hr     = s.restingHeartRate ?? null;
+  const stress = s.averageStressLevel ?? null;
+
   document.getElementById('kpi-vitals').innerHTML = [
-    kpiCard('😴 Sleep score', sleepScore||'—', sleepQuality, sleepScore>=80?'col-good':sleepScore>=60?'col-warn':'col-red', sleepScore>=80?'✓ In range':'↓ Below optimal', sleepScore>=80?'badge-good':'badge-warn'),
-    kpiCard('💓 HRV last night', (hrv.lastNightAvg||'—')+'ms', `7d avg: ${hrv.weeklyAvg||'—'}ms · ${hrv.status??'—'}`, (hrv.lastNightAvg||0)>=(hrv.baseline?.balancedLow||55)?'col-good':'col-warn', hrv.status==='BALANCED'?'✓ Balanced':'⚠ Off baseline', hrv.status==='BALANCED'?'badge-good':'badge-warn'),
-    kpiCard('❤️ Resting HR', hr+' bpm', `7d avg: ${s.lastSevenDaysAvgRestingHeartRate??44} bpm`, hr<=50?'col-good':hr<=60?'col-warn':'col-red', hr<=50?'✓ Excellent':'ℹ Track trend', hr<=50?'badge-good':'badge-blue'),
-    kpiCard('🔋 Body Battery', bb, `Woke at ${s.bodyBatteryAtWakeTime??100} · now ${bb}`, bb>=60?'col-good':bb>=30?'col-warn':'col-red', bb>=60?'✓ High':'↓ Lower than ideal', bb>=60?'badge-good':'badge-warn'),
-    kpiCard('🧠 Stress', stress, `${(s.stressPercentage??6).toFixed(0)}% of day stressed`, stress<30?'col-good':stress<50?'col-warn':'col-red', stress<30?'✓ Low':'⚠ Monitor', stress<30?'badge-good':'badge-warn'),
-    kpiCard('🫁 SpO₂', (s.averageSpo2??97)+'%', `Lowest: ${s.lowestSpo2??89}%`, 'col-good','✓ Normal','badge-good'),
-    kpiCard('👣 Steps', (s.totalSteps??9963).toLocaleString(), `Goal: ${(s.dailyStepGoal??14120).toLocaleString()}`, 'col-blue','ℹ Active day','badge-blue'),
-    kpiCard('⚡ Vigorous mins', (s.vigorousIntensityMinutes??51)+'m', 'WHO goal: 75+/wk', (s.vigorousIntensityMinutes??51)>=75?'col-good':'col-warn',(s.vigorousIntensityMinutes??51)>=75?'✓ On track':'↑ Build up','badge-good'),
+    kpiCard('😴 Sleep score',
+      sleepScore||'—',
+      `${sleepQuality} · ${sleepDurSec?fmtTime(sleepDurSec):'—'}`,
+      sleepScore>=80?'col-good':sleepScore>=60?'col-warn':'col-red',
+      sleepScore>=80?'✓ In range':'↓ Below optimal',
+      sleepScore>=80?'badge-good':'badge-warn'),
+    kpiCard('💓 HRV last night',
+      hrvLast!=null?hrvLast+'ms':'—',
+      `7d avg: ${hrv7!=null?hrv7+'ms':'—'} · ${hrvStatus}`,
+      hrvLast!=null&&hrvLast>=(hrv.baseline?.balancedLow||55)?'col-good':'col-warn',
+      hrvStatus==='BALANCED'?'✓ Balanced':'⚠ Off baseline',
+      hrvStatus==='BALANCED'?'badge-good':'badge-warn'),
+    kpiCard('❤️ Resting HR',
+      hr!=null?hr+' bpm':'—',
+      `7d avg: ${s.lastSevenDaysAvgRestingHeartRate??'—'} bpm`,
+      hr!=null&&hr<=50?'col-good':hr!=null&&hr<=60?'col-warn':'col-red',
+      hr!=null&&hr<=50?'✓ Excellent':'ℹ Track trend',
+      hr!=null&&hr<=50?'badge-good':'badge-blue'),
+    kpiCard('🔋 Body Battery',
+      bb!=null?bb:'—',
+      bb!=null?`Woke at ${s.bodyBatteryAtWakeTime??'—'} · now ${bb}`:'No data',
+      bb!=null&&bb>=60?'col-good':bb!=null&&bb>=30?'col-warn':'col-red',
+      bb!=null&&bb>=60?'✓ High':'↓ Lower than ideal',
+      bb!=null&&bb>=60?'badge-good':'badge-warn'),
+    kpiCard('🧠 Stress',
+      stress!=null?stress:'—',
+      stress!=null?`${(s.stressPercentage??0).toFixed(0)}% of day stressed`:'No data',
+      stress!=null&&stress<30?'col-good':stress!=null&&stress<50?'col-warn':'col-red',
+      stress!=null&&stress<30?'✓ Low':'⚠ Monitor',
+      stress!=null&&stress<30?'badge-good':'badge-warn'),
+    kpiCard('🫁 SpO₂',
+      s.averageSpo2!=null?s.averageSpo2+'%':'—',
+      `Lowest: ${s.lowestSpo2??'—'}%`,
+      'col-good','✓ Normal','badge-good'),
+    kpiCard('👣 Steps',
+      s.totalSteps!=null?s.totalSteps.toLocaleString():'—',
+      `Goal: ${(s.dailyStepGoal??14120).toLocaleString()}`,
+      'col-blue','ℹ Active day','badge-blue'),
+    kpiCard('⚡ Vigorous mins',
+      s.vigorousIntensityMinutes!=null?s.vigorousIntensityMinutes+'m':'—',
+      'WHO goal: 75+/wk',
+      s.vigorousIntensityMinutes>=75?'col-good':'col-warn',
+      s.vigorousIntensityMinutes>=75?'✓ On track':'↑ Build up',
+      'badge-good'),
   ].join('');
 }
 
 function renderKPILoad(data, runs){
   const m = computeLoadMetrics(runs);
-  const tsbStatus = m.tsb > 5 ? ['Fresh','badge-good'] : m.tsb > -10 ? ['Neutral','badge-blue'] : m.tsb > -25 ? ['Tired','badge-warn'] : ['Very fatigued','badge-red'];
+
+  // Runalyze expresses ATL/CTL as % of the athlete's all-time peak load
+  // We approximate peak from the max single-day load ever seen
+  const daily = {};
+  runs.forEach(r=>{ const d=r.startTimeLocal?.substring(0,10); if(d) daily[d]=(daily[d]||0)+(r.activityTrainingLoad||0); });
+  const peakLoad = Math.max(...Object.values(daily), 1);
+  const atlPct = Math.round(m.atl / peakLoad * 100);
+  const ctlPct = Math.round(m.ctl / peakLoad * 100);
+
+  // TSB: positive = fresh/rested, negative = fatigued, -30+ = risky
+  const tsbLabel = m.tsb>10?'Fresh 🟢':m.tsb>0?'Neutral 🔵':m.tsb>-15?'Tired 🟡':m.tsb>-30?'Fatigued 🟠':'Overreaching 🔴';
+  const tsbClass = m.tsb>10?'badge-good':m.tsb>0?'badge-blue':m.tsb>-15?'badge-warn':'badge-red';
+
   document.getElementById('kpi-load').innerHTML = [
-    kpiCard('📈 CTL (Fitness)', m.ctl.toFixed(1), '42-day avg daily load', m.ctl>=60?'col-good':m.ctl>=40?'col-warn':'col-blue', m.ctl>=60?'✓ Good base':'↑ Build fitness','badge-blue'),
-    kpiCard('🔥 ATL (Fatigue)', m.atl.toFixed(1), '7-day avg daily load', m.atl>m.ctl+15?'col-warn':'col-good', m.atl>m.ctl+15?'⚠ High load':'✓ Manageable', m.atl>m.ctl+15?'badge-warn':'badge-good'),
-    kpiCard('⚖️ TSB (Form)', m.tsb.toFixed(1), 'CTL − ATL · higher=fresher', m.tsb>=5?'col-good':m.tsb>=-10?'col-blue':'col-warn', tsbStatus[0], tsbStatus[1]),
-    kpiCard('📊 Ramp rate', m.rampRate+'%', 'vs chronic weekly load', Math.abs(m.rampRate)<=10?'col-good':'col-warn', Math.abs(m.rampRate)<=10?'✓ Safe ramp':'⚠ High ramp (>10%)', Math.abs(m.rampRate)<=10?'badge-good':'badge-warn'),
+    kpiCard('📈 CTL — Fitness',
+      m.ctl.toFixed(1),
+      `42d EWMA · ~${ctlPct}% of peak · higher = fitter`,
+      m.ctl>=70?'col-good':m.ctl>=40?'col-warn':'col-blue',
+      m.ctl>=70?'✓ Good base':'↑ Build fitness','badge-blue'),
+    kpiCard('🔥 ATL — Fatigue',
+      m.atl.toFixed(1),
+      `7d EWMA · ~${atlPct}% of peak · higher = more fatigued`,
+      m.atl>m.ctl+20?'col-warn':'col-good',
+      m.atl>m.ctl+20?'⚠ High load':'✓ Manageable',
+      m.atl>m.ctl+20?'badge-warn':'badge-good'),
+    kpiCard('⚖️ TSB — Form',
+      m.tsb.toFixed(1),
+      'CTL − ATL · +ve=fresh · −ve=tired · ideal race: +5 to +15',
+      m.tsb>=5?'col-good':m.tsb>=-15?'col-warn':'col-red',
+      tsbLabel, tsbClass),
+    kpiCard('📊 Weekly ramp',
+      m.rampRate>0?'+'+m.rampRate+'%':m.rampRate+'%',
+      'This week vs 4-week avg · safe range: −10% to +10%',
+      Math.abs(m.rampRate)<=10?'col-good':'col-warn',
+      Math.abs(m.rampRate)<=10?'✓ Safe ramp':'⚠ High ramp',
+      Math.abs(m.rampRate)<=10?'badge-good':'badge-warn'),
   ].join('');
 
-  // ATL/CTL bars
-  const maxLoad = Math.max(m.ctl, m.atl, 80);
+  const maxLoad = Math.max(m.ctl, m.atl, 1);
   document.getElementById('load-bars').innerHTML = `
+    <div style="font-size:10px;font-family:var(--mono);color:var(--muted);margin-bottom:8px;">
+      Exponential EWMA (same formula as TrainingPeaks). Runalyze shows ATL/CTL as % of peak — comparable to ~${atlPct}% / ~${ctlPct}% here.
+    </div>
     <div class="load-gauge" style="margin-bottom:10px;">
-      <div class="load-gauge-label"><span style="color:var(--blue)">CTL — Fitness</span><span style="font-family:var(--mono)">${m.ctl.toFixed(1)}</span></div>
+      <div class="load-gauge-label"><span style="color:var(--blue)">CTL — Fitness (42d)</span><span style="font-family:var(--mono)">${m.ctl.toFixed(1)}</span></div>
       <div class="load-bar"><div class="load-bar-fill" style="width:${m.ctl/maxLoad*100}%;background:var(--blue);"></div></div>
     </div>
     <div class="load-gauge" style="margin-bottom:10px;">
-      <div class="load-gauge-label"><span style="color:var(--warn)">ATL — Fatigue</span><span style="font-family:var(--mono)">${m.atl.toFixed(1)}</span></div>
+      <div class="load-gauge-label"><span style="color:var(--warn)">ATL — Fatigue (7d)</span><span style="font-family:var(--mono)">${m.atl.toFixed(1)}</span></div>
       <div class="load-bar"><div class="load-bar-fill" style="width:${m.atl/maxLoad*100}%;background:var(--warn);"></div></div>
     </div>
     <div class="load-gauge">
-      <div class="load-gauge-label"><span style="color:${m.tsb>=0?'var(--accent)':'var(--red)'}">TSB — Form</span><span style="font-family:var(--mono)">${m.tsb.toFixed(1)}</span></div>
-      <div class="load-bar"><div class="load-bar-fill" style="width:${Math.abs(m.tsb)/maxLoad*100}%;background:${m.tsb>=0?'var(--accent)':'var(--red)'};"></div></div>
+      <div class="load-gauge-label"><span style="color:${m.tsb>=0?'var(--accent)':'var(--red)'}">TSB — Form</span><span style="font-family:var(--mono)">${m.tsb.toFixed(1)} (${tsbLabel})</span></div>
+      <div class="load-bar"><div class="load-bar-fill" style="width:${Math.min(100,Math.abs(m.tsb)/maxLoad*100)}%;background:${m.tsb>=0?'var(--accent)':'var(--red)'};"></div></div>
     </div>`;
 }
 
@@ -989,37 +1070,90 @@ function selectReadiness(val, el){
   el.classList.add('selected');
 }
 
-function submitCheckin(){
+async function submitCheckin(){
   if(!checkinReadiness){ alert('Please select how you feel first.'); return; }
   const note = document.getElementById('checkin-note').value.trim();
+  const btn = document.getElementById('checkin-btn');
+  btn.textContent = '🤖 Coach is thinking…'; btn.disabled = true;
+
+  // Build context for the coach from live Garmin data
+  const runs = allData ? (allData.activities||[]).filter(a=>a.activityType?.typeKey==='running') : [];
+  const m = runs.length ? computeLoadMetrics(runs) : {atl:0,ctl:0,tsb:0};
+  const recentRuns = runs.slice(0,5).map(r=>
+    `${r.startTimeLocal?.substring(0,10)}: ${fmtDist(r.distance)} at ${fmtPace(r.averageSpeed)}/km (load ${Math.round(r.activityTrainingLoad||0)})`
+  ).join('\n');
+  const sleepDTO = allData?.sleep?.dailySleepDTO || {};
+  const sleepScore = sleepDTO.sleepScores?.overall?.value ?? '?';
+  const hrv = allData?.hrv?.hrvSummary || {};
+  const feelMap = {great:'Ready to race (feeling excellent)',good:'Feeling good',ok:'Moderate — not great',tired:'Tired / fatigued',injured:'Niggle or injury concern'};
+
+  const prompt = `You are a professional running coach helping an athlete train for a sub-18:00 5K and a sub-1:28 half marathon on 20 September 2026. They are running Copenhagen Marathon this Sunday as an experience run.
+
+Athlete data right now:
+- Readiness selection: ${feelMap[checkinReadiness]||checkinReadiness}
+- Athlete's own words: "${note||'(no notes added)'}"
+- Sleep score last night: ${sleepScore}/100
+- HRV last night avg: ${hrv.lastNightAvg??'?'}ms (7d avg: ${hrv.weeklyAvg??'?'}ms, status: ${hrv.status??'?'})
+- CTL (fitness, 42d EWMA): ${m.ctl.toFixed(1)}
+- ATL (fatigue, 7d EWMA): ${m.atl.toFixed(1)}  
+- TSB (form, positive=fresh): ${m.tsb.toFixed(1)}
+- Last 5 runs:
+${recentRuns}
+
+Give a direct, personal coach response (5-8 sentences max). You must:
+1. Address the athlete's specific words — quote them back if they mentioned a body part, symptom or feeling.
+2. Give a clear, concrete recommendation for TODAY specifically (modify session, rest, reduce intensity, proceed as planned, etc).
+3. If they mention pain/tightness in a specific area, give targeted advice for that.
+4. Reference their actual training data (sleep, TSB, recent load) to justify your recommendation.
+5. End with one motivating sentence about their goal.
+Write like a real coach texting their athlete — direct, warm, no bullet points.`;
+
+  let coachReply = '';
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 400,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    coachReply = data.content?.[0]?.text || 'No response received — try again.';
+  } catch(e) {
+    coachReply = 'Could not reach the AI coach right now. Check your internet connection. Your check-in has been saved.';
+  }
+
+  // Save to localStorage with coach reply
   const entry = {
     date: new Date().toISOString().split('T')[0],
     time: new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
     feel: checkinReadiness,
-    note
+    note,
+    coachReply
   };
   const existing = JSON.parse(localStorage.getItem('checkins')||'[]');
   existing.unshift(entry);
   if(existing.length>60) existing.pop();
   localStorage.setItem('checkins', JSON.stringify(existing));
 
-  // Reset UI
+  // Show coach reply inline
+  document.getElementById('coach-response-box').style.display = 'block';
+  document.getElementById('coach-response-text').textContent = coachReply;
+
+  // Reset form
   checkinReadiness = null;
   document.querySelectorAll('.rb').forEach(b=>b.classList.remove('selected'));
   document.getElementById('checkin-note').value = '';
+  btn.textContent = 'Send to coach →'; btn.disabled = false;
 
-  // Show confirmation
-  const btn = document.querySelector('.checkin-submit');
-  btn.textContent = '✅ Saved!';
-  setTimeout(()=>{ btn.textContent='Save check-in'; }, 2000);
-
-  // Refresh history display
   renderCheckinHistory();
 
-  // Re-render coach assessment so it picks up new readiness
+  // Update coach plan to reflect new readiness
   if(allData){
-    const runs = (allData.activities||[]).filter(a=>a.activityType?.typeKey==='running');
-    renderCoachPlan(runs);
+    const runs2 = (allData.activities||[]).filter(a=>a.activityType?.typeKey==='running');
+    renderCoachPlan(runs2);
   }
 }
 
@@ -1028,16 +1162,17 @@ function renderCheckinHistory(){
   const feelLabels={great:'🟢 Ready to race',good:'🔵 Good',ok:'🟡 Moderate',tired:'🔴 Tired',injured:'🟣 Niggle'};
   const feelColors={great:'col-good',good:'col-blue',ok:'col-warn',tired:'col-red',injured:'col-purple'};
   document.getElementById('checkin-history').innerHTML = entries.slice(0,10).map(e=>`
-    <div class="checkin-entry">
-      <div class="ce-date">${e.date}<br><span style="font-size:9px;">${e.time}</span></div>
-      <div>
-        <div class="ce-feel ${feelColors[e.feel]||''}">${feelLabels[e.feel]||e.feel}</div>
-        ${e.note?`<div style="margin-top:2px;color:var(--muted)">${e.note}</div>`:''}
+    <div class="checkin-entry" style="flex-direction:column;gap:5px;">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <span class="ce-date">${e.date} ${e.time||''}</span>
+        <span class="ce-feel ${feelColors[e.feel]||''}">${feelLabels[e.feel]||e.feel}</span>
       </div>
-    </div>`).join('') || '<div style="color:var(--muted);font-family:var(--mono);font-size:12px;">No check-ins yet.</div>';
+      ${e.note?`<div style="font-size:11px;color:var(--muted2);font-style:italic;">"${e.note}"</div>`:''}
+      ${e.coachReply?`<div style="font-size:11px;color:#a7f3d0;background:rgba(34,212,164,.06);border-radius:6px;padding:6px 8px;border-left:2px solid var(--accent);">🤖 ${e.coachReply.substring(0,180)}${e.coachReply.length>180?'…':''}</div>`:''}
+    </div>`).join('') || '<div style="color:var(--muted);font-family:var(--mono);font-size:12px;">No check-ins yet. Use the form on the left to check in.</div>';
 }
 
-// Returns today's check-in feel string, or null
+// Returns today's most recent check-in entry, or null
 function getTodayCheckin(){
   const entries = JSON.parse(localStorage.getItem('checkins')||'[]');
   const today = new Date().toISOString().split('T')[0];

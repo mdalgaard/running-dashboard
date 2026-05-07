@@ -6,11 +6,14 @@ on:
   workflow_dispatch:
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true   # ← fixes the warning
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   fetch:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write        # ← this is the fix
+
     steps:
       - uses: actions/checkout@v4
 

@@ -34,7 +34,7 @@ stress = client.get_stress_data(t)
 
 print("Fetching VO2max (today + history)…")
 vo2 = client.get_max_metrics(t)
-vo2_history = []
+vo2_history = client.get_max_metrics_range(jan1, t)  # full year history
 
 print("Fetching race predictions…")
 race_preds = client.get_race_predictions()
@@ -43,13 +43,14 @@ print("Fetching lactate threshold…")
 lt = client.get_lactate_threshold()
 
 print("Fetching personal records…")
-prs = []
+prs = client.get_personal_records()
 
 print("Fetching activities (last 100)…")
 activities = client.get_activities(0, 100)
 
-print("Skipping resting HR trend…")
-rhr_trend = []
+print("Fetching resting HR trend (90 days)…")
+ninety_ago = (today - timedelta(days=90)).isoformat()
+rhr_trend = client.get_resting_heart_rate(t)
 
 now = datetime.utcnow()
 data = {

@@ -5,631 +5,1043 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Morten · Running Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
-  :root {
-    --bg: #0d0f12;
-    --surface: #151820;
-    --surface2: #1c2028;
-    --border: rgba(255,255,255,0.07);
-    --border2: rgba(255,255,255,0.12);
-    --text: #e8eaf0;
-    --muted: #6b7280;
-    --accent: #22d4a4;
-    --accent2: #3b82f6;
-    --warn: #f59e0b;
-    --danger: #ef4444;
-    --good: #22d4a4;
-    --mono: 'DM Mono', monospace;
-    --sans: 'Syne', sans-serif;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; min-height: 100vh; }
+:root {
+  --bg:#0c0e12; --s1:#141720; --s2:#1b1f2b; --s3:#222638;
+  --border:rgba(255,255,255,0.07); --border2:rgba(255,255,255,0.13);
+  --text:#e4e7f0; --muted:#5c6374; --muted2:#8891a4;
+  --accent:#22d4a4; --blue:#3b82f6; --warn:#f59e0b; --red:#ef4444; --orange:#f97316; --purple:#a78bfa;
+  --mono:'DM Mono',monospace; --sans:'Syne',sans-serif;
+  --radius:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.5;}
+a{color:inherit;text-decoration:none;}
 
-  /* Layout */
-  .shell { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
+/* ── Layout ── */
+.shell{max-width:1280px;margin:0 auto;padding:1.5rem 1.25rem 4rem;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+@media(max-width:900px){.grid3,.grid4{grid-template-columns:1fr 1fr;}}
+@media(max-width:600px){.grid2,.grid3,.grid4{grid-template-columns:1fr;}}
 
-  /* Header */
-  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: 1.5rem; }
-  .header-left h1 { font-family: var(--sans); font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
-  .header-left .sub { font-size: 12px; color: var(--muted); margin-top: 4px; font-family: var(--mono); }
-  .header-right { text-align: right; }
-  .goal-badge { display: inline-block; background: rgba(34,212,164,0.12); border: 1px solid rgba(34,212,164,0.3); color: var(--accent); font-size: 11px; font-family: var(--mono); padding: 4px 10px; border-radius: 4px; margin-bottom: 6px; }
-  .est-5k { font-family: var(--mono); font-size: 1.4rem; font-weight: 500; color: var(--accent2); }
-  .est-5k-label { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+/* ── Top nav / header ── */
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:1rem 0 1.5rem;border-bottom:1px solid var(--border);margin-bottom:1.75rem;gap:1rem;flex-wrap:wrap;}
+.topbar-left h1{font-size:1.3rem;font-weight:800;letter-spacing:-0.02em;}
+.topbar-left .ts{font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:3px;}
+.tab-nav{display:flex;gap:6px;flex-wrap:wrap;}
+.tab-btn{font-size:12px;font-family:var(--mono);padding:5px 14px;border-radius:20px;border:1px solid var(--border2);background:transparent;color:var(--muted2);cursor:pointer;transition:all .15s;}
+.tab-btn:hover{border-color:var(--border2);color:var(--text);}
+.tab-btn.active{background:var(--accent);color:#000;border-color:var(--accent);font-weight:500;}
 
-  /* Section labels */
-  .section-label { font-size: 10px; font-weight: 500; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; font-family: var(--mono); margin-bottom: 12px; margin-top: 2rem; }
+/* ── Section label ── */
+.slabel{font-size:10px;font-family:var(--mono);letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin:1.5rem 0 .75rem;display:flex;align-items:center;gap:8px;}
+.slabel::after{content:'';flex:1;height:1px;background:var(--border);}
 
-  /* KPI grid */
-  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
-  .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
-  .kpi-label { font-size: 10px; color: var(--muted); font-family: var(--mono); letter-spacing: 0.05em; margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
-  .kpi-value { font-family: var(--mono); font-size: 1.6rem; font-weight: 500; line-height: 1; }
-  .kpi-sub { font-size: 10px; color: var(--muted); font-family: var(--mono); margin-top: 4px; }
-  .good { color: var(--good); }
-  .mid { color: var(--warn); }
-  .info { color: var(--accent2); }
-  .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
-  .dot-good { background: var(--good); }
-  .dot-mid { background: var(--warn); }
-  .dot-info { background: var(--accent2); }
-  .dot-muted { background: var(--muted); }
+/* ── Cards ── */
+.card{background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.1rem;}
+.card-sm{padding:.75rem 1rem;}
+.card-title{font-size:10px;font-family:var(--mono);color:var(--muted);letter-spacing:.05em;margin-bottom:.75rem;}
 
-  /* Progress bar */
-  .prog-wrap { background: var(--surface); border-radius: 4px; height: 4px; overflow: hidden; margin-top: 8px; }
-  .prog-fill { height: 100%; border-radius: 4px; background: var(--accent); transition: width 0.8s ease; }
+/* ── KPI cards ── */
+.kpi-val{font-family:var(--mono);font-size:1.6rem;font-weight:500;line-height:1;}
+.kpi-sub{font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:3px;}
+.kpi-badge{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-family:var(--mono);padding:2px 7px;border-radius:3px;margin-top:5px;}
+.badge-good{background:rgba(34,212,164,.1);color:var(--accent);border:1px solid rgba(34,212,164,.2);}
+.badge-warn{background:rgba(245,158,11,.1);color:var(--warn);border:1px solid rgba(245,158,11,.2);}
+.badge-red{background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.2);}
+.badge-blue{background:rgba(59,130,246,.1);color:var(--blue);border:1px solid rgba(59,130,246,.2);}
+.badge-purple{background:rgba(167,139,250,.1);color:var(--purple);border:1px solid rgba(167,139,250,.2);}
+.badge-neutral{background:var(--s2);color:var(--muted2);border:1px solid var(--border);}
+.col-good{color:var(--accent);}
+.col-warn{color:var(--warn);}
+.col-red{color:var(--red);}
+.col-blue{color:var(--blue);}
+.col-purple{color:var(--purple);}
 
-  /* Two-col layout */
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  @media(max-width: 600px) { .two-col { grid-template-columns: 1fr; } }
+/* ── Progress bar ── */
+.prog{height:5px;background:var(--s3);border-radius:3px;overflow:hidden;margin-top:6px;}
+.prog-fill{height:100%;border-radius:3px;background:var(--accent);transition:width .8s ease;}
 
-  /* Cards */
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
-  .card-title { font-size: 11px; color: var(--muted); font-family: var(--mono); letter-spacing: 0.06em; margin-bottom: 14px; }
+/* ── ATL/CTL gauge row ── */
+.load-gauge{display:flex;flex-direction:column;gap:4px;}
+.load-gauge-label{display:flex;justify-content:space-between;font-size:10px;font-family:var(--mono);}
+.load-bar{height:8px;background:var(--s3);border-radius:4px;overflow:hidden;}
+.load-bar-fill{height:100%;border-radius:4px;}
 
-  /* Run table */
-  .run-table { width: 100%; border-collapse: collapse; }
-  .run-table th { font-size: 10px; color: var(--muted); font-family: var(--mono); font-weight: 400; text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
-  .run-table td { padding: 9px 8px; border-bottom: 1px solid var(--border); font-size: 13px; font-family: var(--mono); vertical-align: middle; }
-  .run-table tr:last-child td { border-bottom: none; }
-  .run-table tr:hover td { background: var(--surface2); }
-  .badge { font-size: 10px; padding: 2px 7px; border-radius: 3px; font-family: var(--mono); white-space: nowrap; }
-  .badge-base  { background: rgba(34,212,164,0.1);  color: #22d4a4; border: 1px solid rgba(34,212,164,0.25); }
-  .badge-tempo { background: rgba(245,158,11,0.1);  color: #f59e0b; border: 1px solid rgba(245,158,11,0.25); }
-  .badge-lact  { background: rgba(249,115,22,0.1);  color: #f97316; border: 1px solid rgba(249,115,22,0.25); }
-  .badge-vo2   { background: rgba(239,68,68,0.1);   color: #ef4444; border: 1px solid rgba(239,68,68,0.25); }
+/* ── Run table ── */
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;}
+th{font-size:10px;font-family:var(--mono);color:var(--muted);font-weight:400;text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);white-space:nowrap;}
+td{padding:9px 10px;border-bottom:1px solid var(--border);font-size:12px;font-family:var(--mono);white-space:nowrap;}
+tr:last-child td{border-bottom:none;}
+tbody tr{cursor:pointer;transition:background .12s;}
+tbody tr:hover td{background:var(--s2);}
 
-  /* Zone bars */
-  .zone-bars { display: flex; height: 18px; gap: 2px; align-items: flex-end; }
-  .zone-bar { border-radius: 2px 2px 0 0; }
+/* ── Zone bars ── */
+.zbars{display:flex;height:20px;gap:2px;align-items:flex-end;}
+.zbar{border-radius:2px 2px 0 0;}
 
-  /* Chart containers */
-  .chart-wrap { position: relative; width: 100%; }
+/* ── Modal ── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:100;padding:1rem;backdrop-filter:blur(4px);}
+.modal-bg.hidden{display:none;}
+.modal{background:var(--s1);border:1px solid var(--border2);border-radius:14px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto;padding:1.5rem;}
+.modal-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.25rem;}
+.modal-close{background:var(--s2);border:1px solid var(--border);color:var(--muted2);font-size:18px;cursor:pointer;border-radius:6px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.modal-close:hover{color:var(--text);}
+.modal-section{margin-bottom:1rem;}
+.modal-section-title{font-size:10px;font-family:var(--mono);color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;}
+.modal-section p{font-size:13px;color:var(--muted2);line-height:1.6;}
+.modal-tag{display:inline-block;font-size:10px;font-family:var(--mono);padding:2px 8px;border-radius:3px;margin:2px;}
+.info-row{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;}
+.info-item{font-family:var(--mono);font-size:11px;color:var(--muted2);}
+.info-item strong{color:var(--text);display:block;font-size:13px;}
 
-  /* Coach section */
-  .coach-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-  .coach-title { font-size: 1rem; font-weight: 700; }
-  .coach-assessment { background: rgba(34,212,164,0.06); border: 1px solid rgba(34,212,164,0.2); border-radius: 8px; padding: 14px 16px; font-size: 13px; line-height: 1.6; color: #a7f3d0; margin-bottom: 16px; }
-  .coach-assessment strong { color: var(--accent); }
-  .week-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
-  .session-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; transition: border-color 0.2s; }
-  .session-card:hover { border-color: var(--border2); }
-  .session-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-  .session-day { font-family: var(--mono); font-size: 10px; color: var(--muted); }
-  .session-name { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
-  .session-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
-  .session-details { display: flex; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
-  .session-detail { font-family: var(--mono); font-size: 10px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
-  .session-detail::before { content: '—'; margin-right: 2px; }
+/* ── Coach plan cards ── */
+.week-scroll{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;scroll-snap-type:x mandatory;}
+.week-scroll::-webkit-scrollbar{height:4px;}
+.week-scroll::-webkit-scrollbar-track{background:var(--s2);}
+.week-scroll::-webkit-scrollbar-thumb{background:var(--s3);border-radius:2px;}
+.session-card{flex:0 0 240px;scroll-snap-align:start;background:var(--s2);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;cursor:pointer;transition:border-color .15s,transform .12s;}
+.session-card:hover{border-color:var(--border2);transform:translateY(-1px);}
+.session-card.today{border-color:var(--accent);box-shadow:0 0 0 1px rgba(34,212,164,.15);}
+.session-card.race{border-color:var(--red);box-shadow:0 0 0 1px rgba(239,68,68,.15);}
+.sc-day{font-size:10px;font-family:var(--mono);color:var(--muted);margin-bottom:4px;}
+.sc-name{font-weight:700;font-size:13px;margin-bottom:6px;}
+.sc-desc{font-size:11px;color:var(--muted2);line-height:1.5;}
+.sc-details{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.sc-detail{font-size:10px;font-family:var(--mono);color:var(--muted);background:var(--s3);padding:2px 6px;border-radius:3px;}
+.sc-click-hint{font-size:9px;font-family:var(--mono);color:var(--muted);margin-top:8px;opacity:.7;}
 
-  /* Tooltip for status indicator */
-  .status-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
-  .status-pill { font-size: 10px; font-family: var(--mono); padding: 3px 8px; border-radius: 3px; }
-  .status-good { background: rgba(34,212,164,0.1); color: var(--good); border: 1px solid rgba(34,212,164,0.2); }
-  .status-warn { background: rgba(245,158,11,0.1); color: var(--warn); border: 1px solid rgba(245,158,11,0.2); }
-  .status-info { background: rgba(59,130,246,0.1); color: var(--accent2); border: 1px solid rgba(59,130,246,0.2); }
+/* ── Check-in ── */
+.checkin-area{background:var(--s1);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;}
+.readiness-btns{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;}
+.rb{font-size:12px;font-family:var(--mono);padding:7px 14px;border-radius:6px;border:1px solid var(--border);background:var(--s2);color:var(--muted2);cursor:pointer;transition:all .15s;}
+.rb:hover{border-color:var(--border2);color:var(--text);}
+.rb.selected{font-weight:500;}
+.rb-great.selected{background:rgba(34,212,164,.12);border-color:var(--accent);color:var(--accent);}
+.rb-good.selected{background:rgba(59,130,246,.1);border-color:var(--blue);color:var(--blue);}
+.rb-ok.selected{background:rgba(245,158,11,.1);border-color:var(--warn);color:var(--warn);}
+.rb-tired.selected{background:rgba(239,68,68,.1);border-color:var(--red);color:var(--red);}
+.rb-injured.selected{background:rgba(167,139,250,.1);border-color:var(--purple);color:var(--purple);}
+.checkin-note{width:100%;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-family:var(--mono);font-size:12px;resize:vertical;min-height:60px;margin-top:8px;}
+.checkin-note:focus{outline:none;border-color:var(--border2);}
+.checkin-submit{margin-top:8px;background:var(--accent);color:#000;font-family:var(--mono);font-size:12px;font-weight:500;padding:7px 18px;border-radius:6px;border:none;cursor:pointer;}
+.checkin-submit:hover{opacity:.9;}
+.checkin-history{margin-top:12px;display:flex;flex-direction:column;gap:6px;}
+.checkin-entry{background:var(--s2);border-radius:6px;padding:8px 10px;font-size:11px;font-family:var(--mono);color:var(--muted2);display:flex;gap:10px;align-items:flex-start;}
+.checkin-entry .ce-date{color:var(--muted);white-space:nowrap;min-width:80px;}
+.checkin-entry .ce-feel{font-weight:500;}
 
-  /* Updated notice */
-  .updated { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+/* ── Coach memory ── */
+.memory-entry{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;}
+.me-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.me-name{font-weight:600;font-size:13px;}
+.me-date{font-size:10px;font-family:var(--mono);color:var(--muted);}
+.me-status-row{display:flex;gap:6px;flex-wrap:wrap;}
+.me-tag{font-size:10px;font-family:var(--mono);padding:2px 8px;border-radius:3px;}
+.me-tag-done{background:rgba(34,212,164,.1);color:var(--accent);}
+.me-tag-missed{background:rgba(239,68,68,.1);color:var(--red);}
+.me-tag-partial{background:rgba(245,158,11,.1);color:var(--warn);}
+.me-feel{font-size:11px;color:var(--muted2);margin-top:5px;font-family:var(--mono);}
 
-  /* Divider */
-  .divider { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+/* ── Trend sparkline ── */
+.sparkline-wrap{height:40px;position:relative;}
 
-  /* Scroll table on mobile */
-  .table-wrap { overflow-x: auto; }
+/* ── Race countdown ── */
+.race-banner{background:linear-gradient(135deg,rgba(239,68,68,.08),rgba(239,68,68,.03));border:1px solid rgba(239,68,68,.25);border-radius:var(--radius);padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;}
+.rb-label{font-size:10px;font-family:var(--mono);color:var(--muted);}
+.rb-val{font-size:1.4rem;font-weight:700;color:var(--red);font-family:var(--mono);}
 
-  /* Sleep stage row */
-  .sleep-stages { display: flex; height: 10px; border-radius: 5px; overflow: hidden; gap: 2px; margin-top: 8px; }
-  .sleep-seg { border-radius: 2px; }
+/* ── Loading ── */
+#loading{display:flex;align-items:center;justify-content:center;min-height:80vh;gap:10px;font-family:var(--mono);font-size:13px;color:var(--muted);}
+#app{display:none;}
+.spin{width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
 
-  /* Loading state */
-  #loading { display: flex; align-items: center; justify-content: center; min-height: 60vh; font-family: var(--mono); color: var(--muted); font-size: 13px; gap: 10px; }
-  #app { display: none; }
-  .spinner { width: 16px; height: 16px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
+/* ── Tab pages ── */
+.tab-page{display:none;}
+.tab-page.active{display:block;}
 </style>
 </head>
 <body>
 
-<div id="loading">
-  <div class="spinner"></div>
-  Loading your data...
-</div>
+<div id="loading"><div class="spin"></div>Loading your data…</div>
 
 <div id="app">
 <div class="shell">
 
-  <!-- Header -->
-  <div class="header">
-    <div class="header-left">
-      <h1>Morten Dalgaard</h1>
-      <div class="sub">Running dashboard · <span id="updated-ts">—</span></div>
-    </div>
-    <div class="header-right">
-      <div class="goal-badge">Target: Sub 18:00 5K</div>
-      <div class="est-5k" id="est5k">—:——</div>
-      <div class="est-5k-label">estimated 5K · <span id="vo2max-label">VO₂max —</span></div>
+<!-- ══ TOP BAR ══ -->
+<div class="topbar">
+  <div class="topbar-left">
+    <h1>Morten · Running Dashboard</h1>
+    <div class="ts" id="last-updated">—</div>
+  </div>
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('overview')">Overview</button>
+    <button class="tab-btn" onclick="switchTab('coach')">Coach Plan</button>
+    <button class="tab-btn" onclick="switchTab('metrics')">Metrics</button>
+    <button class="tab-btn" onclick="switchTab('memory')">Coach Memory</button>
+    <button class="tab-btn" onclick="switchTab('checkin')">Check-In</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- TAB: OVERVIEW                                     -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="tab-page active" id="tab-overview">
+
+  <!-- Race banners -->
+  <div id="race-banners"></div>
+
+  <!-- Vitals KPIs -->
+  <div class="slabel">Today's vitals</div>
+  <div class="grid4" id="kpi-vitals"></div>
+
+  <!-- Load metrics -->
+  <div class="slabel">Training load (TrainingPeaks-style)</div>
+  <div class="grid4" id="kpi-load"></div>
+
+  <!-- ATL/CTL visual bars -->
+  <div class="card" style="margin-top:10px;">
+    <div class="card-title">ATL · CTL · TSB (Fitness / Fatigue / Form)</div>
+    <div id="load-bars"></div>
+    <div class="chart-wrap" style="height:140px;margin-top:12px;">
+      <canvas id="load-chart"></canvas>
     </div>
   </div>
 
-  <!-- Today's vitals -->
-  <div class="section-label">Today's vitals</div>
-  <div class="kpi-grid" id="kpi-grid">
-    <!-- filled by JS -->
-  </div>
+  <!-- This week summary -->
+  <div class="slabel">This week</div>
+  <div class="grid4" id="kpi-week"></div>
 
-  <!-- Step progress -->
-  <div style="margin-top: 10px;">
-    <div style="display:flex; justify-content:space-between; font-size:10px; font-family:var(--mono); color:var(--muted); margin-bottom:4px;">
-      <span>Steps: <span id="steps-val" class="info">—</span></span>
-      <span>Goal: <span id="steps-goal">—</span></span>
-    </div>
-    <div class="prog-wrap"><div class="prog-fill" id="steps-prog" style="width:0%"></div></div>
-  </div>
-
-  <!-- Sleep breakdown -->
-  <div class="section-label" style="margin-top:1.5rem;">Sleep breakdown</div>
-  <div class="two-col">
-    <div class="card">
-      <div class="card-title">Sleep stages · last night</div>
-      <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-        <div>
-          <div style="font-family:var(--mono);font-size:1.4rem;font-weight:500;" class="good" id="sleep-score">90</div>
-          <div style="font-size:10px;color:var(--muted);font-family:var(--mono);">sleep score</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-family:var(--mono);font-size:1.4rem;font-weight:500;" id="sleep-dur">8h 03m</div>
-          <div style="font-size:10px;color:var(--muted);font-family:var(--mono);">duration</div>
-        </div>
-      </div>
-      <div class="sleep-stages" id="sleep-stages"></div>
-      <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;">
-        <div style="font-size:10px;font-family:var(--mono);color:var(--muted);">
-          <span style="color:#6366f1;">■</span> Deep: <span id="deep-pct">—</span>%
-        </div>
-        <div style="font-size:10px;font-family:var(--mono);color:var(--muted);">
-          <span style="color:#22d4a4;">■</span> REM: <span id="rem-pct">—</span>%
-        </div>
-        <div style="font-size:10px;font-family:var(--mono);color:var(--muted);">
-          <span style="color:#3b82f6;">■</span> Light: <span id="light-pct">—</span>%
-        </div>
-        <div style="font-size:10px;font-family:var(--mono);color:var(--muted);">
-          <span style="color:#374151;">■</span> Awake: <span id="awake-pct">—</span>%
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-title">HRV overnight readings</div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-        <div>
-          <div style="font-family:var(--mono);font-size:1.4rem;font-weight:500;" class="good" id="hrv-val">66</div>
-          <div style="font-size:10px;color:var(--muted);font-family:var(--mono);">last night avg</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-family:var(--mono);font-size:1.1rem;font-weight:500;" class="info" id="hrv-weekly">61</div>
-          <div style="font-size:10px;color:var(--muted);font-family:var(--mono);">7d average</div>
-        </div>
-      </div>
-      <div class="chart-wrap" style="height:80px;">
-        <canvas id="hrv-chart" role="img" aria-label="HRV readings overnight"></canvas>
-      </div>
-      <div class="status-row">
-        <span class="status-pill status-good" id="hrv-status">BALANCED</span>
-        <span style="font-size:10px;font-family:var(--mono);color:var(--muted);">Baseline: 57–73ms</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Training load chart -->
-  <div class="section-label">Training load · last 14 days</div>
-  <div class="card">
-    <div class="card-title">Activity training load per session</div>
-    <div class="chart-wrap" style="height:160px;">
-      <canvas id="load-chart" role="img" aria-label="Training load per session over last 14 days"></canvas>
-    </div>
-  </div>
-
-  <!-- Recent runs table -->
-  <div class="section-label">Recent activities</div>
-  <div class="card" style="padding: 0;">
-    <div class="table-wrap">
-      <table class="run-table">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Session</th>
-            <th>Distance</th>
-            <th>Avg pace</th>
-            <th>Avg HR</th>
-            <th>HR zones</th>
-            <th>Effect</th>
-            <th>Load</th>
-          </tr>
-        </thead>
-        <tbody id="run-tbody">
-        </tbody>
+  <!-- Recent runs -->
+  <div class="slabel">Recent activities</div>
+  <div class="card" style="padding:0;">
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>Date</th><th>Name</th><th>Dist</th><th>Pace</th>
+          <th>HR avg</th><th>Cadence</th><th>GCT</th><th>V.Osc</th>
+          <th>HR zones</th><th>Effect</th><th>Load</th>
+        </tr></thead>
+        <tbody id="run-tbody"></tbody>
       </table>
     </div>
   </div>
 
-  <!-- Weekly summary -->
-  <div class="section-label">14-day summary</div>
-  <div class="kpi-grid" id="summary-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px,1fr));"></div>
+</div><!-- /tab-overview -->
 
-  <hr class="divider">
+<!-- ══════════════════════════════════════════════════ -->
+<!-- TAB: COACH PLAN                                   -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="tab-page" id="tab-coach">
 
-  <!-- Coach -->
-  <div class="coach-header">
-    <div style="width:32px;height:32px;background:rgba(34,212,164,0.15);border:1px solid rgba(34,212,164,0.3);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;">🤖</div>
+  <div class="card" style="margin-bottom:12px;background:linear-gradient(135deg,rgba(34,212,164,.06),rgba(34,212,164,.02));border-color:rgba(34,212,164,.2);">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <div style="font-size:20px;">🤖</div>
+      <div>
+        <div style="font-weight:700;font-size:1rem;">Coach's assessment</div>
+        <div style="font-size:10px;font-family:var(--mono);color:var(--muted);">Based on all your Garmin history · updated each time data refreshes</div>
+      </div>
+    </div>
+    <div id="coach-assessment" style="font-size:13px;color:#a7f3d0;line-height:1.7;"></div>
+  </div>
+
+  <div class="slabel">7-day training plan · click any session for full details</div>
+  <div class="week-scroll" id="week-scroll"></div>
+
+  <!-- Goals progress -->
+  <div class="slabel">Race goals</div>
+  <div class="grid2" id="race-goals"></div>
+
+</div><!-- /tab-coach -->
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- TAB: METRICS                                      -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="tab-page" id="tab-metrics">
+
+  <div class="slabel">Performance metrics</div>
+  <div class="grid4" id="kpi-perf"></div>
+
+  <div class="slabel">Running dynamics (last 5 runs avg)</div>
+  <div class="grid4" id="kpi-dynamics"></div>
+
+  <div class="slabel">Recovery metrics</div>
+  <div class="grid4" id="kpi-recovery"></div>
+
+  <div class="slabel">VO₂max history</div>
+  <div class="card">
+    <div class="card-title">VO₂max trend Jan–May 2026</div>
+    <div style="height:160px;"><canvas id="vo2-chart"></canvas></div>
+  </div>
+
+  <div class="slabel">Race predictor history</div>
+  <div class="card">
+    <div class="card-title">Garmin race predictions over time</div>
+    <div id="race-predictor-table"></div>
+  </div>
+
+</div><!-- /tab-metrics -->
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- TAB: COACH MEMORY                                 -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="tab-page" id="tab-memory">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
     <div>
-      <div class="coach-title">AI Coach · 7-day plan</div>
-      <div style="font-size:10px;font-family:var(--mono);color:var(--muted);">Auto-generated from last 14 days of training data</div>
+      <div style="font-weight:700;font-size:1rem;">Coach Memory</div>
+      <div style="font-size:11px;color:var(--muted);font-family:var(--mono);">Log workouts, completion, feeling and pace achievement</div>
+    </div>
+    <button onclick="showAddMemory()" style="background:var(--accent);color:#000;font-family:var(--mono);font-size:12px;font-weight:500;padding:7px 16px;border-radius:6px;border:none;cursor:pointer;">+ Log workout</button>
+  </div>
+  <div id="memory-list"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- TAB: CHECK-IN                                     -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="tab-page" id="tab-checkin">
+  <div class="grid2" style="gap:12px;">
+    <div>
+      <div style="font-weight:700;font-size:1rem;margin-bottom:4px;">Daily check-in</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Your subjective readiness is fed into the coach's planning</div>
+      <div class="checkin-area">
+        <div class="card-title">How do you feel today?</div>
+        <div class="readiness-btns">
+          <button class="rb rb-great" onclick="selectReadiness('great',this)">🟢 Ready to race</button>
+          <button class="rb rb-good" onclick="selectReadiness('good',this)">🔵 Feeling good</button>
+          <button class="rb rb-ok" onclick="selectReadiness('ok',this)">🟡 Moderate</button>
+          <button class="rb rb-tired" onclick="selectReadiness('tired',this)">🔴 Tired / fatigued</button>
+          <button class="rb rb-injured" onclick="selectReadiness('injured',this)">🟣 Niggle / injury</button>
+        </div>
+        <textarea class="checkin-note" id="checkin-note" placeholder="Any notes? e.g. left knee a bit tight, legs heavy from yesterday, slept poorly..."></textarea>
+        <button class="checkin-submit" onclick="submitCheckin()">Save check-in</button>
+      </div>
+    </div>
+    <div>
+      <div style="font-weight:700;font-size:1rem;margin-bottom:4px;">Check-in history</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px;">Last 10 entries</div>
+      <div class="checkin-history" id="checkin-history"></div>
     </div>
   </div>
-
-  <div class="coach-assessment">
-    <strong>Coach's read:</strong> Your sleep (90/100) and HRV (66ms, BALANCED) are excellent — recovery is solid after a heavy week.
-    The Apr 26 VO₂max session (load: 349) plus May 3 long run (227) mean cumulative fatigue is high.
-    This week: one sharp speed session, one threshold, one long easy — everything else is recovery.
-    Your current estimated 5K sits around <strong>23:24</strong>. You need to reach <strong>3:36/km</strong> race pace.
-    VO₂max of <strong>57</strong> is good raw material — the work now is speed endurance and neuromuscular power.
-  </div>
-
-  <div class="week-grid" id="coach-plan"></div>
-
-  <hr class="divider">
-  <div style="font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;padding-bottom:2rem;">
-    Data refreshed automatically every 30 min via GitHub Actions · <span id="footer-ts">—</span>
-  </div>
-
 </div>
+
+</div><!-- /shell -->
+</div><!-- /app -->
+
+<!-- ══ ACTIVITY MODAL ══ -->
+<div class="modal-bg hidden" id="act-modal">
+  <div class="modal" id="act-modal-content"></div>
+</div>
+
+<!-- ══ SESSION MODAL ══ -->
+<div class="modal-bg hidden" id="sess-modal">
+  <div class="modal" id="sess-modal-content"></div>
+</div>
+
+<!-- ══ ADD MEMORY MODAL ══ -->
+<div class="modal-bg hidden" id="mem-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div style="font-weight:700;font-size:1rem;">Log workout</div>
+      <button class="modal-close" onclick="closeMemModal()">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div>
+        <div class="card-title">Workout name</div>
+        <input id="mem-name" type="text" placeholder="e.g. 5×1000m intervals" style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-family:var(--mono);font-size:12px;">
+      </div>
+      <div>
+        <div class="card-title">Date</div>
+        <input id="mem-date" type="date" style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-family:var(--mono);font-size:12px;">
+      </div>
+      <div>
+        <div class="card-title">Status</div>
+        <select id="mem-status" style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-family:var(--mono);font-size:12px;">
+          <option value="completed">✅ Completed</option>
+          <option value="partial">⚠️ Partial</option>
+          <option value="missed">❌ Missed</option>
+        </select>
+      </div>
+      <div>
+        <div class="card-title">How did it feel? (1–10)</div>
+        <input id="mem-feel" type="number" min="1" max="10" placeholder="7" style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-family:var(--mono);font-size:12px;">
+      </div>
+      <div>
+        <div class="card-title">Were target paces achieved?</div>
+        <select id="mem-paces" style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-family:var(--mono);font-size:12px;">
+          <option value="yes">✅ Yes, on target</option>
+          <option value="close">🟡 Close (within 5s/km)</option>
+          <option value="no">❌ No, too slow</option>
+          <option value="na">N/A (easy/rest)</option>
+        </select>
+      </div>
+      <div>
+        <div class="card-title">Notes</div>
+        <textarea id="mem-notes" style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-family:var(--mono);font-size:12px;resize:vertical;min-height:70px;" placeholder="Any additional notes..."></textarea>
+      </div>
+      <button onclick="saveMemory()" style="background:var(--accent);color:#000;font-family:var(--mono);font-size:12px;font-weight:500;padding:8px 18px;border-radius:6px;border:none;cursor:pointer;margin-top:4px;">Save to coach memory</button>
+    </div>
+  </div>
 </div>
 
 <script>
-// ─── Helpers ────────────────────────────────────────────────────────────────
-function fmtPace(mps) {
-  if (!mps || mps <= 0) return '—';
-  const sPerKm = 1000 / mps;
-  const m = Math.floor(sPerKm / 60);
-  const s = Math.round(sPerKm % 60).toString().padStart(2, '0');
-  return `${m}:${s}/km`;
-}
-function fmtDuration(sec) {
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
-}
-function fmtDist(m) {
-  return (m / 1000).toFixed(1) + ' km';
-}
-function fmtDate(str) {
-  const d = new Date(str);
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-}
-function badgeClass(label) {
-  if (!label) return 'badge-base';
-  const l = label.toLowerCase();
-  if (l.includes('vo2')) return 'badge-vo2';
-  if (l.includes('lact') || l.includes('threshold')) return 'badge-lact';
-  if (l.includes('tempo')) return 'badge-tempo';
-  return 'badge-base';
-}
-function badgeLabel(label) {
-  if (!label) return 'Base';
-  const l = label.toLowerCase();
-  if (l.includes('vo2')) return 'VO₂max';
-  if (l.includes('lact') || l.includes('threshold')) return 'Lactate';
-  if (l.includes('tempo')) return 'Tempo';
-  return 'Base';
-}
-function zoneBars(act) {
-  const zones = [
-    { key: 'hrTimeInZone_1', color: '#22d4a4' },
-    { key: 'hrTimeInZone_2', color: '#84cc16' },
-    { key: 'hrTimeInZone_3', color: '#f59e0b' },
-    { key: 'hrTimeInZone_4', color: '#f97316' },
-    { key: 'hrTimeInZone_5', color: '#ef4444' },
-  ];
-  const total = zones.reduce((s, z) => s + (act[z.key] || 0), 0);
-  if (!total) return '';
-  return zones.map(z => {
-    const pct = Math.round((act[z.key] || 0) / total * 100);
-    return `<div class="zone-bar" style="width:${pct}%;min-width:${pct > 0 ? 2 : 0}px;height:${Math.max(4, pct * 0.18)}px;background:${z.color};opacity:0.85;" title="Z${zones.indexOf(z)+1}: ${pct}%"></div>`;
-  }).join('');
+// ═══════════════════════════════════════════════════════════════════
+// CONSTANTS & CONFIG
+// ═══════════════════════════════════════════════════════════════════
+const GOALS = {
+  primary:   { event:'5K', target:'Sub 18:00', targetSec:1080, confidence:'High', note:'As soon as possible' },
+  secondary: { event:'Half Marathon', target:'Sub 1:28:00', targetSec:5280, date:'20 Sep 2026' },
+  upcoming:  { event:'Copenhagen Marathon', date:'2026-05-11', note:'This Sunday! Treat as training run / experience.' }
+};
+
+const LT_PACE_MPS = 0.41111; // from Garmin (~4:04/km)
+const LT_HR = 173;
+const VO2MAX = 57.1;
+
+// ═══════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════
+let allData = null;
+let checkinReadiness = null;
+
+// ═══════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════
+function fmtPace(mps){ if(!mps||mps<=0)return '—'; const s=1000/mps; return `${Math.floor(s/60)}:${Math.round(s%60).toString().padStart(2,'0')}`; }
+function fmtTime(sec){ const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=Math.round(sec%60); return h?`${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`:`${m}:${s.toString().padStart(2,'0')}`; }
+function fmtDist(m){ return (m/1000).toFixed(1)+' km'; }
+function fmtDate(str){ return new Date(str).toLocaleDateString('en-GB',{day:'numeric',month:'short'}); }
+function fmtDateFull(str){ return new Date(str).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}); }
+function daysUntil(str){ return Math.round((new Date(str)-new Date())/(864e5)); }
+
+function kpiCard(label, value, sub, colorClass, badgeText, badgeClass2){
+  return `<div class="card card-sm">
+    <div class="card-title">${label}</div>
+    <div class="kpi-val ${colorClass||''}">${value}</div>
+    <div class="kpi-sub">${sub||''}</div>
+    ${badgeText?`<div class="kpi-badge ${badgeClass2||'badge-neutral'}">${badgeText}</div>`:''}
+  </div>`;
 }
 
-// ─── Coach Plan (static, updated weekly) ───────────────────────────────────
-const PLAN = [
-  { day: 'Wed 6 May', type: 'Rest / Mobility', badge: 'Recovery', badgeClass: 'badge-base',
-    desc: 'Full rest. 20 min gentle yoga or foam rolling. Body needs to absorb back-to-back hard sessions from May 3 + 5. No running.',
-    details: ['20 min mobility', 'RPE: 1–2', 'No impact'] },
-  { day: 'Thu 7 May', type: '5K Race Pace Intervals', badge: 'Speed', badgeClass: 'badge-vo2',
-    desc: '5 × 1000m at 3:36–3:45/km with 90s jog recovery. Warm-up 2 km easy, cool-down 2 km. The key session of the week.',
-    details: ['~10 km total', '3:36–3:45/km reps', 'HR: Z4–Z5', '90s jog recovery'] },
-  { day: 'Fri 8 May', type: 'Easy recovery run', badge: 'Easy', badgeClass: 'badge-base',
-    desc: 'Pure Z1–Z2 at conversational pace. HR must stay under 145 bpm the whole time. This is not optional — take it easy.',
-    details: ['7–8 km', '5:30–6:00/km', 'HR < 145 bpm'] },
-  { day: 'Sat 9 May', type: 'Threshold tempo run', badge: 'Lactate', badgeClass: 'badge-lact',
-    desc: '3 × 2 km at 4:00–4:10/km (comfortably hard). 2 min standing rest between reps. 2 km warm-up and cool-down each.',
-    details: ['~10 km total', '4:00–4:10/km tempo', 'HR: Z3–Z4'] },
-  { day: 'Sun 10 May', type: 'Long easy run', badge: 'Base', badgeClass: 'badge-base',
-    desc: 'Relaxed 14–16 km at 5:20–5:40/km. Do not push pace. Builds aerobic engine without adding stress. Eat and drink well after.',
-    details: ['14–16 km', '5:20–5:40/km', 'HR: Z1–Z2'] },
-  { day: 'Mon 11 May', type: 'Rest', badge: 'Recovery', badgeClass: 'badge-base',
-    desc: 'Complete rest. Let Sunday absorb. Optional short walk or 15 min stretching only.',
-    details: ['Full rest', 'Optional: walk'] },
-  { day: 'Tue 12 May', type: 'Strides + Short intervals', badge: 'Speed', badgeClass: 'badge-tempo',
-    desc: '8 km easy with 6 × 100m strides near-sprint pace + 3 × 400m at 3:20/km. Wakes legs before next hard week.',
-    details: ['~9 km total', '6 × 100m strides', '3 × 400m @ 3:20/km'] },
-];
-
-// ─── Main render ────────────────────────────────────────────────────────────
-async function loadDashboard() {
-  let data;
-  try {
-    const res = await fetch('./garmin_data.json');
-    if (!res.ok) throw new Error('no data file');
-    data = await res.json();
-  } catch (e) {
-    // Fallback demo data so the page still looks good
-    data = getDemoData();
-  }
-
-  document.getElementById('loading').style.display = 'none';
-  document.getElementById('app').style.display = 'block';
-
-  renderHeader(data);
-  renderKPIs(data);
-  renderSleep(data);
-  renderHRVChart(data);
-  renderActivities(data);
-  renderLoadChart(data);
-  renderSummary(data);
-  renderCoach();
+function zoneBars(a){
+  const z=[{k:'hrTimeInZone_1',c:'#22d4a4'},{k:'hrTimeInZone_2',c:'#84cc16'},{k:'hrTimeInZone_3',c:'#f59e0b'},{k:'hrTimeInZone_4',c:'#f97316'},{k:'hrTimeInZone_5',c:'#ef4444'}];
+  const tot=z.reduce((s,x)=>s+(a[x.k]||0),0);
+  if(!tot)return '';
+  return z.map(x=>{const p=Math.round((a[x.k]||0)/tot*100);return `<div class="zbar" style="width:${p}%;min-width:${p>0?2:0}px;height:${Math.max(3,p*.2)}px;background:${x.c};opacity:.85;" title="Z${z.indexOf(x)+1}: ${p}%"></div>`;}).join('');
 }
 
-function renderHeader(data) {
-  const ts = data.updated || new Date().toISOString().split('T')[0];
-  document.getElementById('updated-ts').textContent = 'last updated ' + ts;
-  document.getElementById('footer-ts').textContent = ts;
-
-  const vo2 = data.vo2max?.generic?.vo2MaxValue || data.daily_summary?.vo2Max || 57;
-  document.getElementById('vo2max-label').textContent = `VO₂max ${vo2}`;
-
-  // Estimate 5K from VO2max: Jack Daniels formula
-  const vdot = vo2;
-  const paceSecPerKm = Math.round(((29.54 + 5.000663 * vdot - 0.007546 * vdot * vdot) / vdot) * 1000 / 14.4);
-  const estSec = paceSecPerKm * 5;
-  const em = Math.floor(estSec / 60);
-  const es = (estSec % 60).toString().padStart(2, '0');
-  document.getElementById('est5k').textContent = `${em}:${es}`;
+function effBadge(label){
+  const l=(label||'').toLowerCase();
+  if(l.includes('vo2'))return['VO₂max','badge-red'];
+  if(l.includes('lact')||l.includes('threshold'))return['Lactate','badge-warn'];
+  if(l.includes('tempo'))return['Tempo','badge-blue'];
+  if(l.includes('base')||l.includes('aerobic'))return['Base','badge-good'];
+  return['Easy','badge-neutral'];
 }
 
-function renderKPIs(data) {
-  const s = data.daily_summary || {};
-  const sleep = data.sleep?.dailySleepDTO || {};
-  const hrv = data.hrv?.hrvSummary || {};
-
-  const kpis = [
-    { label: 'Sleep score', value: sleep.sleepScores?.overall?.value ?? 90, sub: sleep.sleepScores?.overall?.qualifierKey ?? 'Excellent', dot: 'good', format: v => v },
-    { label: 'HRV', value: hrv.lastNightAvg ?? 66, sub: (hrv.status || 'BALANCED').toLowerCase(), dot: 'good', format: v => v + 'ms' },
-    { label: 'Resting HR', value: s.restingHeartRate ?? 44, sub: '7d avg: ' + (s.lastSevenDaysAvgRestingHeartRate ?? 44), dot: 'good', format: v => v + ' bpm' },
-    { label: 'Body Battery', value: s.bodyBatteryMostRecentValue ?? 40, sub: 'woke at ' + (s.bodyBatteryAtWakeTime ?? 100), dot: s.bodyBatteryMostRecentValue >= 50 ? 'good' : 'mid', format: v => v },
-    { label: 'Stress', value: s.averageStressLevel ?? 17, sub: (s.stressPercentage ?? 6).toFixed(0) + '% of day', dot: (s.averageStressLevel ?? 17) < 30 ? 'good' : 'mid', format: v => v },
-    { label: 'VO₂ Max', value: data.vo2max?.generic?.vo2MaxValue ?? 57, sub: 'ml/kg/min', dot: 'info', format: v => v },
-    { label: 'SpO₂', value: s.averageSpo2 ?? 97, sub: 'low: ' + (s.lowestSpo2 ?? 89) + '%', dot: 'good', format: v => v + '%' },
-    { label: 'Vigorous mins', value: s.vigorousIntensityMinutes ?? 51, sub: 'goal: 150/wk', dot: 'info', format: v => v + 'm' },
-  ];
-
-  const grid = document.getElementById('kpi-grid');
-  grid.innerHTML = kpis.map(k => `
-    <div class="kpi-card">
-      <div class="kpi-label"><span class="dot dot-${k.dot}"></span>${k.label}</div>
-      <div class="kpi-value ${k.dot === 'good' ? 'good' : k.dot === 'mid' ? 'mid' : 'info'}">${k.format(k.value)}</div>
-      <div class="kpi-sub">${k.sub}</div>
-    </div>
-  `).join('');
-
-  // Steps
-  const steps = s.totalSteps ?? 9963;
-  const goal = s.dailyStepGoal ?? 14120;
-  document.getElementById('steps-val').textContent = steps.toLocaleString();
-  document.getElementById('steps-goal').textContent = goal.toLocaleString();
-  document.getElementById('steps-prog').style.width = Math.min(100, Math.round(steps / goal * 100)) + '%';
-}
-
-function renderSleep(data) {
-  const sleep = data.sleep?.dailySleepDTO || {};
-  const total = (sleep.sleepTimeSeconds || 28980);
-  const deep = sleep.deepSleepSeconds || 5580;
-  const rem = sleep.remSleepSeconds || 5940;
-  const light = sleep.lightSleepSeconds || 17460;
-  const awake = sleep.awakeSleepSeconds || 1080;
-
-  document.getElementById('sleep-score').textContent = sleep.sleepScores?.overall?.value ?? 90;
-  document.getElementById('sleep-dur').textContent = fmtDuration(total);
-  document.getElementById('deep-pct').textContent = Math.round(deep / total * 100);
-  document.getElementById('rem-pct').textContent = Math.round(rem / total * 100);
-  document.getElementById('light-pct').textContent = Math.round(light / total * 100);
-  document.getElementById('awake-pct').textContent = Math.round(awake / total * 100);
-
-  // Stage bar
-  const stages = document.getElementById('sleep-stages');
-  stages.innerHTML = [
-    { sec: deep, color: '#6366f1' },
-    { sec: rem, color: '#22d4a4' },
-    { sec: light, color: '#3b82f6' },
-    { sec: awake, color: '#374151' },
-  ].map(s => `<div class="sleep-seg" style="flex:${s.sec};background:${s.color};"></div>`).join('');
-}
-
-function renderHRVChart(data) {
-  const readings = (data.hrv?.hrvReadings || []).slice(0, 60);
-  const weekly = data.hrv?.hrvSummary?.weeklyAvg || 61;
-  const lastAvg = data.hrv?.hrvSummary?.lastNightAvg || 66;
-  const status = data.hrv?.hrvSummary?.status || 'BALANCED';
-
-  document.getElementById('hrv-val').textContent = lastAvg + 'ms';
-  document.getElementById('hrv-weekly').textContent = weekly + 'ms';
-  document.getElementById('hrv-status').textContent = status;
-
-  const labels = readings.map((r, i) => i % 10 === 0 ? r.readingTimeLocal?.substring(11, 16) : '');
-  const vals = readings.map(r => r.hrvValue);
-
-  new Chart(document.getElementById('hrv-chart'), {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        data: vals,
-        borderColor: '#22d4a4',
-        borderWidth: 1.5,
-        pointRadius: 0,
-        tension: 0.4,
-        fill: true,
-        backgroundColor: 'rgba(34,212,164,0.08)',
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.raw + 'ms' } } },
-      scales: {
-        x: { display: false },
-        y: { ticks: { font: { size: 10 }, color: '#6b7280', family: "'DM Mono'" }, grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false } }
-      }
-    }
+// ═══════════════════════════════════════════════════════════════════
+// LOAD METRICS (TrainingPeaks-style ATL/CTL/TSB)
+// ═══════════════════════════════════════════════════════════════════
+function computeLoadMetrics(runs){
+  const today = new Date('2026-05-07');
+  const daily = {};
+  runs.forEach(r=>{
+    const d = r.startTimeLocal?.substring(0,10);
+    if(d) daily[d] = (daily[d]||0) + (r.activityTrainingLoad||0);
   });
+  function sumDays(n){ let s=0; for(let i=0;i<n;i++){const d=new Date(today);d.setDate(d.getDate()-i);s+=daily[d.toISOString().split('T')[0]]||0;} return s; }
+  const atl = sumDays(7)/7;
+  const ctl = sumDays(42)/42;
+  const tsb = ctl - atl;
+  const acLoad = sumDays(7); // acute 7-day absolute
+  const chLoad = sumDays(42)/6; // chronic weekly avg
+  const rampRate = chLoad>0?(acLoad/7 - chLoad/7)/chLoad*100:0;
+  return {atl:Math.round(atl*10)/10, ctl:Math.round(ctl*10)/10, tsb:Math.round(tsb*10)/10, acLoad:Math.round(acLoad), rampRate:Math.round(rampRate)};
 }
 
-function renderActivities(data) {
-  const acts = (data.activities || []).filter(a => a.activityType?.typeKey === 'running').slice(0, 10);
-  const tbody = document.getElementById('run-tbody');
+function weekKm(runs, weekOffset=0){
+  const today = new Date('2026-05-07');
+  const dow = today.getDay()==0?6:today.getDay()-1; // Mon=0
+  const start = new Date(today); start.setDate(today.getDate()-dow-weekOffset*7);
+  const end = new Date(start); end.setDate(start.getDate()+7);
+  const s=start.toISOString().split('T')[0], e=end.toISOString().split('T')[0];
+  return runs.filter(r=>r.startTimeLocal>=s&&r.startTimeLocal<e).reduce((sum,r)=>sum+(r.distance||0)/1000,0);
+}
 
-  tbody.innerHTML = acts.map(a => {
-    const load = Math.round(a.activityTrainingLoad || 0);
-    return `<tr>
-      <td style="color:var(--muted);white-space:nowrap;">${fmtDate(a.startTimeLocal)}</td>
-      <td>${a.activityName || 'Run'}</td>
+// ═══════════════════════════════════════════════════════════════════
+// RENDER FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════
+
+function renderRaceBanners(){
+  const d = daysUntil(GOALS.upcoming.date);
+  const d2 = daysUntil(GOALS.secondary.date);
+  document.getElementById('race-banners').innerHTML = `
+    <div class="race-banner">
+      <div><div class="rb-label">🏃 ${GOALS.upcoming.event}</div><div style="font-size:12px;color:var(--muted);">${GOALS.upcoming.note}</div></div>
+      <div style="text-align:right;"><div class="rb-val">${d} days</div><div class="rb-label">${new Date(GOALS.upcoming.date).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</div></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+      <div class="card card-sm" style="flex:1;min-width:200px;">
+        <div class="card-title">🎯 Primary goal · ${GOALS.primary.event}</div>
+        <div class="kpi-val col-accent" style="font-size:1.3rem;">${GOALS.primary.target}</div>
+        <div class="kpi-sub">Confidence: ${GOALS.primary.confidence} · ${GOALS.primary.note}</div>
+      </div>
+      <div class="card card-sm" style="flex:1;min-width:200px;">
+        <div class="card-title">🥈 Secondary goal · ${GOALS.secondary.event}</div>
+        <div class="kpi-val col-blue" style="font-size:1.3rem;">${GOALS.secondary.target}</div>
+        <div class="kpi-sub">${d2} days away · ${GOALS.secondary.date}</div>
+      </div>
+    </div>`;
+}
+
+function renderKPIVitals(data){
+  const s = data.daily_summary||{};
+  const sleep = data.sleep?.dailySleepDTO||{};
+  const hrv = data.hrv?.hrvSummary||{};
+  const sleepScore = sleep.sleepScores?.overall?.value??90;
+  const bb = s.bodyBatteryMostRecentValue??40;
+  const hr = s.restingHeartRate??44;
+  const hrv7 = hrv.weeklyAvg??61;
+  const hrvLast = hrv.lastNightAvg??66;
+  const stress = s.averageStressLevel??17;
+  document.getElementById('kpi-vitals').innerHTML = [
+    kpiCard('😴 Sleep score', sleepScore, sleep.sleepScores?.overall?.qualifierKey??'Excellent', sleepScore>=80?'col-good':sleepScore>=60?'col-warn':'col-red', sleepScore>=80?'✓ In range':'↓ Below optimal', sleepScore>=80?'badge-good':'badge-warn'),
+    kpiCard('💓 HRV last night', hrvLast+'ms', `7d avg: ${hrv7}ms · ${hrv.status??'BALANCED'}`, hrvLast>=hrv.baseline?.balancedLow??55?'col-good':'col-warn', hrv.status==='BALANCED'?'✓ Balanced':'⚠ Off baseline', hrv.status==='BALANCED'?'badge-good':'badge-warn'),
+    kpiCard('❤️ Resting HR', hr+' bpm', `7d avg: ${s.lastSevenDaysAvgRestingHeartRate??44} bpm`, hr<=50?'col-good':hr<=60?'col-warn':'col-red', hr<=50?'✓ Excellent':'ℹ Track trend', hr<=50?'badge-good':'badge-blue'),
+    kpiCard('🔋 Body Battery', bb, `Woke at ${s.bodyBatteryAtWakeTime??100} · now ${bb}`, bb>=60?'col-good':bb>=30?'col-warn':'col-red', bb>=60?'✓ High':'↓ Lower than ideal', bb>=60?'badge-good':'badge-warn'),
+    kpiCard('🧠 Stress', stress, `${(s.stressPercentage??6).toFixed(0)}% of day stressed`, stress<30?'col-good':stress<50?'col-warn':'col-red', stress<30?'✓ Low':'⚠ Monitor', stress<30?'badge-good':'badge-warn'),
+    kpiCard('🫁 SpO₂', (s.averageSpo2??97)+'%', `Lowest: ${s.lowestSpo2??89}%`, 'col-good','✓ Normal','badge-good'),
+    kpiCard('👣 Steps', (s.totalSteps??9963).toLocaleString(), `Goal: ${(s.dailyStepGoal??14120).toLocaleString()}`, 'col-blue','ℹ Active day','badge-blue'),
+    kpiCard('⚡ Vigorous mins', (s.vigorousIntensityMinutes??51)+'m', 'WHO goal: 75+/wk', (s.vigorousIntensityMinutes??51)>=75?'col-good':'col-warn',(s.vigorousIntensityMinutes??51)>=75?'✓ On track':'↑ Build up','badge-good'),
+  ].join('');
+}
+
+function renderKPILoad(data, runs){
+  const m = computeLoadMetrics(runs);
+  const tsbStatus = m.tsb > 5 ? ['Fresh','badge-good'] : m.tsb > -10 ? ['Neutral','badge-blue'] : m.tsb > -25 ? ['Tired','badge-warn'] : ['Very fatigued','badge-red'];
+  document.getElementById('kpi-load').innerHTML = [
+    kpiCard('📈 CTL (Fitness)', m.ctl.toFixed(1), '42-day avg daily load', m.ctl>=60?'col-good':m.ctl>=40?'col-warn':'col-blue', m.ctl>=60?'✓ Good base':'↑ Build fitness','badge-blue'),
+    kpiCard('🔥 ATL (Fatigue)', m.atl.toFixed(1), '7-day avg daily load', m.atl>m.ctl+15?'col-warn':'col-good', m.atl>m.ctl+15?'⚠ High load':'✓ Manageable', m.atl>m.ctl+15?'badge-warn':'badge-good'),
+    kpiCard('⚖️ TSB (Form)', m.tsb.toFixed(1), 'CTL − ATL · higher=fresher', m.tsb>=5?'col-good':m.tsb>=-10?'col-blue':'col-warn', tsbStatus[0], tsbStatus[1]),
+    kpiCard('📊 Ramp rate', m.rampRate+'%', 'vs chronic weekly load', Math.abs(m.rampRate)<=10?'col-good':'col-warn', Math.abs(m.rampRate)<=10?'✓ Safe ramp':'⚠ High ramp (>10%)', Math.abs(m.rampRate)<=10?'badge-good':'badge-warn'),
+  ].join('');
+
+  // ATL/CTL bars
+  const maxLoad = Math.max(m.ctl, m.atl, 80);
+  document.getElementById('load-bars').innerHTML = `
+    <div class="load-gauge" style="margin-bottom:10px;">
+      <div class="load-gauge-label"><span style="color:var(--blue)">CTL — Fitness</span><span style="font-family:var(--mono)">${m.ctl.toFixed(1)}</span></div>
+      <div class="load-bar"><div class="load-bar-fill" style="width:${m.ctl/maxLoad*100}%;background:var(--blue);"></div></div>
+    </div>
+    <div class="load-gauge" style="margin-bottom:10px;">
+      <div class="load-gauge-label"><span style="color:var(--warn)">ATL — Fatigue</span><span style="font-family:var(--mono)">${m.atl.toFixed(1)}</span></div>
+      <div class="load-bar"><div class="load-bar-fill" style="width:${m.atl/maxLoad*100}%;background:var(--warn);"></div></div>
+    </div>
+    <div class="load-gauge">
+      <div class="load-gauge-label"><span style="color:${m.tsb>=0?'var(--accent)':'var(--red)'}">TSB — Form</span><span style="font-family:var(--mono)">${m.tsb.toFixed(1)}</span></div>
+      <div class="load-bar"><div class="load-bar-fill" style="width:${Math.abs(m.tsb)/maxLoad*100}%;background:${m.tsb>=0?'var(--accent)':'var(--red)'};"></div></div>
+    </div>`;
+}
+
+function renderKPIWeek(runs){
+  const thisWk = weekKm(runs,0);
+  const lastWk = weekKm(runs,1);
+  const wkRuns = runs.filter(r=>{ const today=new Date('2026-05-07'),dow=today.getDay()==0?6:today.getDay()-1; const start=new Date(today);start.setDate(today.getDate()-dow); return r.startTimeLocal>=start.toISOString().split('T')[0]; });
+  const wkLoad = wkRuns.reduce((s,r)=>s+(r.activityTrainingLoad||0),0);
+  document.getElementById('kpi-week').innerHTML = [
+    kpiCard('📏 This week km', thisWk.toFixed(1)+' km', `Last week: ${lastWk.toFixed(1)} km`, 'col-blue','↑ vs last week','badge-blue'),
+    kpiCard('🏃 Sessions this week', wkRuns.length, '3–4 target per week', wkRuns.length>=3?'col-good':'col-warn', wkRuns.length>=3?'✓ On track':'↑ Add a session', wkRuns.length>=3?'badge-good':'badge-warn'),
+    kpiCard('⚡ Weekly load', Math.round(wkLoad), 'Acute training stress this week', 'col-warn','Track vs goal','badge-neutral'),
+    kpiCard('📅 Days since last run', daysUntil(runs[0]?.startTimeLocal?.split(' ')[0]||'2026-05-05')<0?Math.abs(daysUntil(runs[0]?.startTimeLocal?.split(' ')[0])):0, runs[0]?.activityName||'Last: tempo', 'col-good','Recent activity','badge-good'),
+  ].join('');
+}
+
+function renderRunTable(runs){
+  document.getElementById('run-tbody').innerHTML = runs.slice(0,12).map(a=>{
+    const [effLabel, effClass] = effBadge(a.trainingEffectLabel);
+    const cad = a.averageRunningCadenceInStepsPerMinute ? Math.round(a.averageRunningCadenceInStepsPerMinute*2)+' spm' : '—';
+    return `<tr onclick="showActivityModal(${a.activityId})">
+      <td style="color:var(--muted)">${fmtDate(a.startTimeLocal)}</td>
+      <td style="color:var(--text)">${a.activityName||'Run'}</td>
       <td>${fmtDist(a.distance)}</td>
-      <td class="info">${fmtPace(a.averageSpeed)}</td>
-      <td style="color:var(--muted);">${a.averageHR ?? '—'} bpm</td>
-      <td><div class="zone-bars">${zoneBars(a)}</div></td>
-      <td><span class="badge ${badgeClass(a.trainingEffectLabel)}">${badgeLabel(a.trainingEffectLabel)}</span></td>
-      <td style="color:var(--muted);">${load}</td>
+      <td class="col-blue">${fmtPace(a.averageSpeed)}/km</td>
+      <td style="color:var(--muted)">${a.averageHR??'—'}</td>
+      <td>${cad}</td>
+      <td>${a.avgGroundContactTime?Math.round(a.avgGroundContactTime)+'ms':'—'}</td>
+      <td>${a.avgVerticalOscillation?a.avgVerticalOscillation.toFixed(1)+'cm':'—'}</td>
+      <td><div class="zbars">${zoneBars(a)}</div></td>
+      <td><span class="kpi-badge ${effClass}">${effLabel}</span></td>
+      <td style="color:var(--muted)">${Math.round(a.activityTrainingLoad||0)}</td>
     </tr>`;
   }).join('');
 }
 
-function renderLoadChart(data) {
-  const acts = (data.activities || []).slice(0, 12).reverse();
-  const labels = acts.map(a => fmtDate(a.startTimeLocal));
-  const loads = acts.map(a => Math.round(a.activityTrainingLoad || 0));
-  const colors = acts.map(a => {
-    const l = (a.trainingEffectLabel || '').toLowerCase();
-    if (l.includes('vo2')) return 'rgba(239,68,68,0.75)';
-    if (l.includes('lact') || l.includes('threshold')) return 'rgba(249,115,22,0.75)';
-    if (l.includes('tempo')) return 'rgba(245,158,11,0.75)';
-    return 'rgba(34,212,164,0.65)';
+function renderMetrics(data, runs){
+  // Performance KPIs
+  const rp = data.race_predictions||{};
+  const pred5k = rp.time5K??1149;
+  const predHM = rp.timeHalfMarathon??5240;
+  const ltPace = fmtPace(LT_PACE_MPS);
+
+  document.getElementById('kpi-perf').innerHTML = [
+    kpiCard('🏁 5K prediction', fmtTime(pred5k), `Gap to goal: ${fmtTime(pred5k-GOALS.primary.targetSec)} too slow`, 'col-warn','↑ Work on speed','badge-warn'),
+    kpiCard('🏁 HM prediction', fmtTime(predHM), `vs goal: ${GOALS.secondary.target}`, predHM<=GOALS.secondary.targetSec?'col-good':'col-warn', predHM<=GOALS.secondary.targetSec?'✓ On target':'↑ Build base','badge-warn'),
+    kpiCard('⚡ LT pace', ltPace+'/km', `LT HR: ${LT_HR} bpm`, 'col-blue','ℹ Garmin detected','badge-blue'),
+    kpiCard('🫁 VO₂ Max', VO2MAX, '↑ from 55.8 in Jan', 'col-good','↑ Improving','badge-good'),
+  ].join('');
+
+  // Running dynamics
+  const last5 = runs.slice(0,5);
+  const avgCad = last5.reduce((s,r)=>s+(r.averageRunningCadenceInStepsPerMinute||0),0)/last5.length*2;
+  const avgGCT = last5.reduce((s,r)=>s+(r.avgGroundContactTime||0),0)/last5.length;
+  const avgVO  = last5.reduce((s,r)=>s+(r.avgVerticalOscillation||0),0)/last5.length;
+  const avgStr = last5.reduce((s,r)=>s+(r.avgStrideLength||0),0)/last5.length;
+  // Benchmarks: elite sub-18 5K runner targets
+  const cadOk = avgCad>=170, gctOk=avgGCT<=220, voOk=avgVO<=9.0, strOk=avgStr>=120;
+  document.getElementById('kpi-dynamics').innerHTML = [
+    kpiCard('🦵 Cadence', Math.round(avgCad)+' spm', 'Target: 170–180+ spm', cadOk?'col-good':'col-warn', cadOk?'✓ Good cadence':'↑ Increase cadence', cadOk?'badge-good':'badge-warn'),
+    kpiCard('⏱ Ground contact', Math.round(avgGCT)+' ms', 'Target: <220ms for 5K pace', gctOk?'col-good':'col-warn', gctOk?'✓ Efficient':'↑ Improve stiffness', gctOk?'badge-good':'badge-warn'),
+    kpiCard('📐 Vert. oscillation', avgVO.toFixed(1)+' cm', 'Target: <8cm (efficient)', voOk?'col-good':'col-warn', voOk?'✓ Minimal bounce':'↑ Reduce bounce', voOk?'badge-good':'badge-warn'),
+    kpiCard('👟 Stride length', Math.round(avgStr)+' cm', 'Target: 120+ cm at 5K pace', strOk?'col-good':'col-warn', strOk?'✓ Good stride':'↑ Extend stride', strOk?'badge-good':'badge-warn'),
+  ].join('');
+
+  // Recovery KPIs
+  const hrv = data.hrv?.hrvSummary||{};
+  const sleep = data.sleep?.dailySleepDTO||{};
+  const sleepSec = sleep.sleepTimeSeconds||28980;
+  document.getElementById('kpi-recovery').innerHTML = [
+    kpiCard('💓 HRV status', hrv.status??'BALANCED', `${hrv.lastNightAvg??66}ms vs 7d avg ${hrv.weeklyAvg??61}ms`, 'col-good','✓ No red flags','badge-good'),
+    kpiCard('😴 Sleep duration', fmtTime(sleepSec), `Score: ${sleep.sleepScores?.overall?.value??90}/100`, sleepSec>=25200?'col-good':'col-warn', sleepSec>=25200?'✓ 7+ hours':'↑ Sleep more','badge-good'),
+    kpiCard('🩸 SpO₂ overnight', (data.daily_summary?.averageSpo2??97)+'%', 'Low: '+(data.daily_summary?.lowestSpo2??89)+'% · Normal >95%', 'col-good','✓ Normal','badge-good'),
+    kpiCard('🧠 Stress balance', (data.daily_summary?.averageStressLevel??17), 'Low <30 · Med 30-60', (data.daily_summary?.averageStressLevel??17)<30?'col-good':'col-warn','✓ Low today','badge-good'),
+  ].join('');
+
+  // VO2max chart
+  const vo2data = data.vo2max_history||[];
+  const vo2Filtered = vo2data.filter(d=>d.data?.length>0).map(d=>({date:d.date,val:d.data[0].generic.vo2MaxPreciseValue}));
+  const vo2Monthly = {};
+  vo2Filtered.forEach(d=>{ const m=d.date.substring(0,7); if(!vo2Monthly[m]||d.val>vo2Monthly[m])vo2Monthly[m]=d.val; });
+  new Chart(document.getElementById('vo2-chart'),{
+    type:'line',
+    data:{labels:Object.keys(vo2Monthly),datasets:[{data:Object.values(vo2Monthly),borderColor:'var(--accent)',borderWidth:2,pointRadius:4,pointBackgroundColor:'var(--accent)',tension:.3,fill:true,backgroundColor:'rgba(34,212,164,.08)'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw.toFixed(1)+' ml/kg/min'}}},scales:{x:{ticks:{font:{size:10},color:'#5c6374'},grid:{display:false},border:{display:false}},y:{min:54,max:60,ticks:{font:{size:10},color:'#5c6374'},grid:{color:'rgba(255,255,255,.04)'},border:{display:false}}}}
   });
 
-  new Chart(document.getElementById('load-chart'), {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{ data: loads, backgroundColor: colors, borderRadius: 4 }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => 'Load: ' + c.raw } } },
-      scales: {
-        x: { ticks: { font: { size: 10 }, color: '#6b7280', maxRotation: 40 }, grid: { display: false }, border: { display: false } },
-        y: { ticks: { font: { size: 10 }, color: '#6b7280' }, grid: { color: 'rgba(255,255,255,0.04)' }, border: { display: false }, title: { display: true, text: 'Training load', font: { size: 10 }, color: '#6b7280' } }
-      }
-    }
+  // Race predictor table
+  document.getElementById('race-predictor-table').innerHTML = `
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Distance</th><th>Predicted time</th><th>Predicted pace</th><th>Goal</th><th>Gap</th></tr></thead>
+      <tbody>
+        <tr><td>5K</td><td class="col-warn">${fmtTime(pred5k)}</td><td>${fmtPace(5000/pred5k)}/km</td><td>18:00</td><td class="col-warn">+${fmtTime(pred5k-1080)}</td></tr>
+        <tr><td>10K</td><td class="col-blue">${fmtTime(rp.time10K||2410)}</td><td>${fmtPace(10000/(rp.time10K||2410))}/km</td><td>—</td><td>—</td></tr>
+        <tr><td>Half Marathon</td><td class="col-blue">${fmtTime(predHM)}</td><td>${fmtPace(21097/predHM)}/km</td><td>1:28:00</td><td class="${predHM<=5280?'col-good':'col-warn'}">${predHM<=5280?'✓ On target':'+'+fmtTime(predHM-5280)}</td></tr>
+        <tr><td>Marathon</td><td class="col-blue">${fmtTime(rp.timeMarathon||11490)}</td><td>${fmtPace(42195/(rp.timeMarathon||11490))}/km</td><td>—</td><td>—</td></tr>
+      </tbody>
+    </table></div>`;
+}
+
+function renderLoadChart(runs){
+  const acts = runs.slice(0,14).reverse();
+  const labels = acts.map(a=>fmtDate(a.startTimeLocal));
+  const loads  = acts.map(a=>Math.round(a.activityTrainingLoad||0));
+  const colors = acts.map(a=>{
+    const l=(a.trainingEffectLabel||'').toLowerCase();
+    if(l.includes('vo2'))return'rgba(239,68,68,.75)';
+    if(l.includes('lact'))return'rgba(249,115,22,.75)';
+    if(l.includes('tempo'))return'rgba(245,158,11,.75)';
+    return'rgba(34,212,164,.65)';
+  });
+  new Chart(document.getElementById('load-chart'),{
+    type:'bar',
+    data:{labels,datasets:[{data:loads,backgroundColor:colors,borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'Load: '+c.raw}}},scales:{x:{ticks:{font:{size:10},color:'#5c6374',maxRotation:40},grid:{display:false},border:{display:false}},y:{ticks:{font:{size:10},color:'#5c6374'},grid:{color:'rgba(255,255,255,.04)'},border:{display:false}}}}
   });
 }
 
-function renderSummary(data) {
-  const acts = (data.activities || []).filter(a => a.activityType?.typeKey === 'running');
-  const totalKm = acts.reduce((s, a) => s + (a.distance || 0), 0) / 1000;
-  const totalLoad = acts.reduce((s, a) => s + (a.activityTrainingLoad || 0), 0);
-  const bestPace = Math.min(...acts.filter(a => a.averageSpeed > 0).map(a => 1000 / a.averageSpeed));
-  const bestSplit5k = Math.min(...acts.filter(a => a.fastestSplit_5000 > 0).map(a => a.fastestSplit_5000 || Infinity));
-  const s5m = Math.floor(bestSplit5k / 60);
-  const s5s = Math.round(bestSplit5k % 60).toString().padStart(2, '0');
-  const vo2 = data.vo2max?.generic?.vo2MaxValue ?? 57;
+// ═══════════════════════════════════════════════════════════════════
+// COACH PLAN (with full session detail)
+// ═══════════════════════════════════════════════════════════════════
+const PLAN = [
+  {
+    day:'Sun 10 May', date:'2026-05-11', type:'race',
+    name:'🏅 Copenhagen Marathon', badge:'Race',badgeClass:'badge-red',
+    desc:'Race day! Treat this as a big experience run. Goal: finish strong and gather data on your aerobic engine at marathon pace.',
+    why:'Marathon experience builds mental toughness and aerobic base simultaneously. Even if pace is conservative, the long-duration aerobic stimulus is huge.',
+    warmup:'20 min easy jog + 4×100m strides at race pace morning of race',
+    workout:'42.2 km at controlled effort. Target HR: Zone 2-3 (stay comfortable for first 30km)',
+    cooldown:'Walk 15 min, stretch, compression socks',
+    fuel:'Carb-load Fri+Sat (400-500g carbs/day). Race day: gel every 30–35 min from km 10. Drink at every station.',
+    paces:['Start: 5:10–5:20/km','Mid: 5:00–5:10/km if feeling good','Do NOT go out faster than 5:00/km'],
+    targets:['Finish strong','No HR above Zone 3 first 30km','Consistent pacing'],
+  },
+  {
+    day:'Mon 12 May', date:'2026-05-12', type:'recovery',
+    name:'Full rest', badge:'Recovery',badgeClass:'badge-good',
+    desc:'Mandatory rest after the marathon. Zero running. Walk gently if needed.',
+    why:'After a marathon your muscles experience micro-tears at a cellular level. Even if you feel OK, running today increases injury risk dramatically.',
+    warmup:'N/A',workout:'Rest. Optional 20 min gentle walk.',cooldown:'Ice bath or cold shower if legs heavy',
+    fuel:'High protein (1.8g/kg) + anti-inflammatory foods. Tart cherry juice if available.',
+    paces:['No running'],targets:['Feel human again'],
+  },
+  {
+    day:'Tue 13 May', date:'2026-05-13', type:'recovery',
+    name:'Easy recovery jog (if feeling ok)', badge:'Easy',badgeClass:'badge-good',
+    desc:'Only run if your legs feel genuinely good. 4–6 km maximum, pure shuffle pace.',
+    why:'Light movement promotes blood flow and clears lactate residue. But if legs are sore, take another rest day — no shame.',
+    warmup:'5 min walk',workout:'4–6 km at 6:00–6:30/km, conversational',cooldown:'5 min walk + 10 min stretching',
+    fuel:'Normal eating. Extra carbs if still depleted.',
+    paces:['6:00–6:30/km (slower than feels right)','HR < 135 bpm strictly'],targets:['No soreness','Legs should feel better after than before'],
+  },
+  {
+    day:'Thu 15 May', date:'2026-05-15', type:'quality',
+    name:'5K Race Pace Intervals', badge:'Speed',badgeClass:'badge-red',
+    desc:'5 × 1000m at 3:36/km (sub-18 pace), 2 min jog recovery. Warm-up 2 km, cool-down 2 km. KEY session.',
+    why:'This is the bread-and-butter workout for sub-18. You\'re training the specific energy systems (VO₂max + neuromuscular) needed to sustain 3:36/km for 5km. Nothing else can replace it.',
+    warmup:'2 km easy + 4×100m strides',
+    workout:'5 × 1000m at 3:32–3:40/km · 2 min standing/walking rest between reps',
+    cooldown:'2 km easy jog + 10 min stretching',
+    fuel:'Light meal 2h before (rice/oats). Gel or sports drink optional during. Recovery drink within 30 min after.',
+    paces:['Target: 3:32–3:40/km per rep','If rep 4-5 slip to 3:45, that is fine','DO NOT start reps faster than 3:32'],
+    targets:['Complete all 5 reps','Last rep same pace as first','HR up to Z5 OK'],
+  },
+  {
+    day:'Sat 16 May', date:'2026-05-16', type:'threshold',
+    name:'Threshold tempo', badge:'Lactate',badgeClass:'badge-warn',
+    desc:'3 × 2 km at 4:00–4:10/km (LT pace), 90s rest. Total ~10 km with warm-up/cool-down.',
+    why:'Lactate threshold pace is the fastest you can sustain without lactate accumulating. Pushing it higher = you can race faster before hitting the wall. This is your #2 workout for sub-18.',
+    warmup:'2 km easy + 2×100m strides',
+    workout:'3 × 2 km at 3:58–4:10/km · 90 sec standing recovery',
+    cooldown:'2 km easy',
+    fuel:'No gel needed for this workout. Water/electrolytes fine.',
+    paces:['3:58–4:10/km per rep','HR should reach ~173 bpm (your LT HR)','Should feel "comfortably hard" — can say short sentences'],
+    targets:['All 3 reps on target pace','HR at LT by end of each rep'],
+  },
+  {
+    day:'Sun 17 May', date:'2026-05-17', type:'long',
+    name:'Long easy run', badge:'Base',badgeClass:'badge-good',
+    desc:'14–16 km at purely aerobic pace (5:20–5:40/km). Weekend long run.',
+    why:'The long run builds mitochondrial density, fat metabolism, and the mental toughness to handle volume. It is the aerobic base everything else sits on.',
+    warmup:'First 2 km count as warm-up',
+    workout:'14–16 km continuous at 5:20–5:40/km',
+    cooldown:'5 min walk',
+    fuel:'If over 70 min: gel at 45 min and 75 min. Drink every 20 min.',
+    paces:['5:20–5:40/km — SLOWER than feels right','HR strictly Z1–Z2 (under 148 bpm)'],
+    targets:['Complete the distance feeling fresh','No leg soreness tomorrow'],
+  },
+  {
+    day:'Tue 19 May', date:'2026-05-19', type:'quality',
+    name:'Short speed strides', badge:'Speed',badgeClass:'badge-red',
+    desc:'6 km easy + 6 × 100m all-out strides + 3 × 400m at 3:20/km. Legs feel awake again.',
+    why:'Strides and short intervals maintain neuromuscular sharpness — the "fast-twitch" ability you need to run sub-18. These keep you sharp without heavy fatigue.',
+    warmup:'6 km easy (this IS your warm-up)',
+    workout:'6 × 100m near-sprint (90% effort) · 60s walk recovery\n3 × 400m at 3:15–3:25/km · 90s standing recovery',
+    cooldown:'1 km easy walk/jog',
+    fuel:'Not needed for this session.',
+    paces:['Strides: 90% max effort','400m reps: 3:15–3:25/km'],
+    targets:['Feel fast and fluid','No heavy legs after'],
+  },
+];
 
-  const grid = document.getElementById('summary-grid');
-  grid.innerHTML = [
-    { label: 'Total distance (14d)', value: totalKm.toFixed(0) + ' km', dot: 'info' },
-    { label: 'Total training load', value: Math.round(totalLoad), dot: 'mid' },
-    { label: 'Best 5K split (GPS)', value: bestSplit5k < Infinity ? `${s5m}:${s5s}` : '—', dot: 'good' },
-    { label: 'Best avg pace', value: fmtPace(1 / (bestPace / 1000)), dot: 'good' },
-    { label: 'VO₂ Max', value: vo2, dot: 'info' },
-    { label: 'Runs logged', value: acts.length, dot: 'muted' },
-  ].map(k => `
-    <div class="kpi-card">
-      <div class="kpi-label"><span class="dot dot-${k.dot}"></span>${k.label}</div>
-      <div class="kpi-value ${k.dot === 'good' ? 'good' : k.dot === 'mid' ? 'mid' : k.dot === 'info' ? 'info' : ''}" style="font-size:1.3rem;">${k.value}</div>
+function renderCoachPlan(runs){
+  // Dynamic assessment based on real data
+  const m = computeLoadMetrics(runs);
+  const pred5k = allData?.race_predictions?.time5K||1149;
+  document.getElementById('coach-assessment').innerHTML = `
+    Your <strong>sleep (90/100)</strong> and <strong>HRV (66ms, BALANCED)</strong> are solid. TSB is currently
+    <strong style="color:${m.tsb>=-10?'#f59e0b':'#ef4444'}">${m.tsb.toFixed(1)}</strong>
+    — you're carrying <em>moderate fatigue</em> from last week's high training load.
+    <br><br>
+    ⚠️ <strong style="color:var(--red)">Copenhagen Marathon is this Sunday</strong> — the entire week before is structured around this. Post-marathon recovery starts Monday.
+    <br><br>
+    Your 5K prediction is <strong style="color:var(--warn)">${fmtTime(pred5k)}</strong> vs your goal of
+    <strong style="color:var(--accent)">18:00</strong> — a gap of <strong>${fmtTime(pred5k-1080)}</strong>.
+    VO₂max is trending up (55.8 → 57.1 since Jan). Key limiting factor: <strong>speed endurance</strong> at 3:36/km.
+    Plan: 3–4 runs/week · long run weekends · no morning intervals · gym/bike cross-training welcome on rest days.`;
+
+  const scroll = document.getElementById('week-scroll');
+  scroll.innerHTML = PLAN.map((s,i)=>{
+    const isToday = s.date===new Date().toISOString().split('T')[0];
+    const isRace = s.type==='race';
+    return `<div class="session-card ${isToday?'today':''} ${isRace?'race':''}" onclick="showSessionModal(${i})">
+      <div class="sc-day">${s.day}${isToday?' · TODAY':''}</div>
+      <div><span class="kpi-badge ${s.badgeClass}" style="margin:0 0 6px;display:inline-flex;">${s.badge}</span></div>
+      <div class="sc-name">${s.name}</div>
+      <div class="sc-desc">${s.desc.substring(0,100)}…</div>
+      <div class="sc-details">
+        ${s.paces.slice(0,2).map(p=>`<span class="sc-detail">${p}</span>`).join('')}
+      </div>
+      <div class="sc-click-hint">↗ Click for full details</div>
+    </div>`;
+  }).join('');
+
+  // Race goals
+  document.getElementById('race-goals').innerHTML = `
+    <div class="card">
+      <div class="card-title">🎯 Sub 18:00 5K</div>
+      <div style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;font-family:var(--mono);color:var(--muted);margin-bottom:4px;">
+          <span>Current: ${fmtTime(pred5k)}</span><span>Goal: 18:00</span>
+        </div>
+        <div class="prog"><div class="prog-fill" style="width:${Math.min(100,1080/pred5k*100)}%;background:var(--warn);"></div></div>
+      </div>
+      <div style="font-size:12px;color:var(--muted2);">Need to drop <strong style="color:var(--warn)">${fmtTime(pred5k-1080)}</strong> from current prediction. At current VO₂max trajectory (+1.3 in 4 months), sub-18 is achievable in <strong style="color:var(--accent)">3–5 months</strong> with consistent speed work.</div>
     </div>
-  `).join('');
+    <div class="card">
+      <div class="card-title">🥈 Sub 1:28 Half Marathon · Sep 20</div>
+      <div style="margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;font-family:var(--mono);color:var(--muted);margin-bottom:4px;">
+          <span>Current: ${fmtTime(allData?.race_predictions?.timeHalfMarathon||5240)}</span><span>Goal: 1:28:00</span>
+        </div>
+        <div class="prog"><div class="prog-fill" style="width:${Math.min(100,5280/(allData?.race_predictions?.timeHalfMarathon||5240)*100)}%;background:var(--blue);"></div></div>
+      </div>
+      <div style="font-size:12px;color:var(--muted2);">${daysUntil(GOALS.secondary.date)} days away. Current gap: <strong style="color:var(--blue)">${fmtTime((allData?.race_predictions?.timeHalfMarathon||5240)-5280)}</strong>. Aerobic base work from marathon + summer build should close this.</div>
+    </div>`;
 }
 
-function renderCoach() {
-  const plan = document.getElementById('coach-plan');
-  plan.innerHTML = PLAN.map(s => `
-    <div class="session-card">
-      <div class="session-top">
-        <div class="session-day">${s.day}</div>
-        <span class="badge ${s.badgeClass}">${s.badge}</span>
+// ═══════════════════════════════════════════════════════════════════
+// MODALS
+// ═══════════════════════════════════════════════════════════════════
+function showActivityModal(id){
+  if(!allData) return;
+  const runs = (allData.activities||[]).filter(a=>a.activityType?.typeKey==='running');
+  const a = runs.find(r=>r.activityId===id);
+  if(!a) return;
+  const [effLabel,effClass] = effBadge(a.trainingEffectLabel);
+  document.getElementById('act-modal-content').innerHTML = `
+    <div class="modal-header">
+      <div>
+        <div style="font-weight:700;font-size:1.1rem;">${a.activityName||'Run'}</div>
+        <div style="font-size:11px;font-family:var(--mono);color:var(--muted);">${fmtDateFull(a.startTimeLocal)} · ${a.locationName||'Copenhagen'}</div>
       </div>
-      <div class="session-name">${s.type}</div>
-      <div class="session-desc">${s.desc}</div>
-      <div class="session-details">
-        ${s.details.map(d => `<span class="session-detail">${d}</span>`).join('')}
+      <button class="modal-close" onclick="document.getElementById('act-modal').classList.add('hidden')">✕</button>
+    </div>
+    <div class="info-row" style="margin-bottom:14px;">
+      ${[['Distance',fmtDist(a.distance)],['Avg pace',fmtPace(a.averageSpeed)+'/km'],['Duration',fmtTime(a.duration)],['Avg HR',a.averageHR+' bpm'],['Max HR',a.maxHR+' bpm'],['Calories',a.calories+' kcal'],['Training load',Math.round(a.activityTrainingLoad||0)],['Cadence',a.averageRunningCadenceInStepsPerMinute?Math.round(a.averageRunningCadenceInStepsPerMinute*2)+' spm':'—'],['GCT',a.avgGroundContactTime?Math.round(a.avgGroundContactTime)+'ms':'—'],['Vert. osc.',a.avgVerticalOscillation?a.avgVerticalOscillation.toFixed(1)+'cm':'—'],['Stride',a.avgStrideLength?Math.round(a.avgStrideLength)+'cm':'—'],['Aerobic TE',a.aerobicTrainingEffect?.toFixed(1)??'—']].map(([k,v])=>`<div class="info-item"><span style="color:var(--muted);font-size:10px;">${k}</span><strong>${v}</strong></div>`).join('')}
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">HR zone breakdown</div>
+      <div class="zbars" style="height:40px;gap:3px;align-items:flex-end;">${zoneBars(a)}</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;">
+        ${[['Z1 Easy','#22d4a4',a.hrTimeInZone_1],['Z2 Aerobic','#84cc16',a.hrTimeInZone_2],['Z3 Tempo','#f59e0b',a.hrTimeInZone_3],['Z4 Threshold','#f97316',a.hrTimeInZone_4],['Z5 Max','#ef4444',a.hrTimeInZone_5]].map(([l,c,t])=>`<div style="font-size:10px;font-family:var(--mono);color:var(--muted);"><span style="color:${c}">■</span> ${l}: ${t?fmtTime(t):'0s'}</div>`).join('')}
       </div>
     </div>
-  `).join('');
+    <div class="modal-section">
+      <div class="modal-section-title">Training effect</div>
+      <span class="kpi-badge ${effClass}" style="font-size:11px;">${effLabel}</span>
+      <span style="margin-left:8px;font-size:12px;color:var(--muted2);">${a.aerobicTrainingEffectMessage||''}</span>
+      <div style="font-size:12px;color:var(--muted2);margin-top:4px;">${a.anaerobicTrainingEffectMessage||''}</div>
+    </div>
+    ${a.fastestSplit_5000?`<div class="modal-section"><div class="modal-section-title">Fastest splits</div><div style="display:flex;gap:12px;font-family:var(--mono);font-size:12px;">${a.fastestSplit_1000?`<span>1K: ${fmtTime(a.fastestSplit_1000)}</span>`:''}${a.fastestSplit_5000?`<span>5K: ${fmtTime(a.fastestSplit_5000)}</span>`:''}</div></div>`:''}`;
+  document.getElementById('act-modal').classList.remove('hidden');
 }
 
-// ─── Demo data fallback (used when garmin_data.json not found) ──────────────
-function getDemoData() {
+function showSessionModal(i){
+  const s = PLAN[i];
+  document.getElementById('sess-modal-content').innerHTML = `
+    <div class="modal-header">
+      <div>
+        <div style="font-size:10px;font-family:var(--mono);color:var(--muted);">${s.day}</div>
+        <div style="font-weight:700;font-size:1.1rem;">${s.name}</div>
+      </div>
+      <button class="modal-close" onclick="document.getElementById('sess-modal').classList.add('hidden')">✕</button>
+    </div>
+    <span class="kpi-badge ${s.badgeClass}" style="margin-bottom:12px;display:inline-flex;">${s.badge}</span>
+
+    <div class="modal-section">
+      <div class="modal-section-title">❓ Why this workout</div>
+      <p>${s.why}</p>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">🔥 Warm-up</div>
+      <p>${s.warmup}</p>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">⚡ Main workout</div>
+      <p style="white-space:pre-line;">${s.workout}</p>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">🧊 Cool-down</div>
+      <p>${s.cooldown}</p>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">🎯 Target paces</div>
+      ${s.paces.map(p=>`<div style="font-family:var(--mono);font-size:12px;color:var(--accent);margin:3px 0;">→ ${p}</div>`).join('')}
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">✅ Success targets</div>
+      ${s.targets.map(t=>`<div style="font-size:12px;color:var(--muted2);margin:3px 0;">• ${t}</div>`).join('')}
+    </div>
+    <div class="modal-section" style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:10px 12px;">
+      <div class="modal-section-title" style="color:var(--warn);">🍌 Fuelling</div>
+      <p style="color:#fde68a;">${s.fuel}</p>
+    </div>
+    <div style="margin-top:12px;">
+      <button onclick="logThisSession('${s.name}','${s.day}');document.getElementById('sess-modal').classList.add('hidden');" style="background:var(--s2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 14px;border-radius:6px;cursor:pointer;">📝 Log this session to Coach Memory</button>
+    </div>`;
+  document.getElementById('sess-modal').classList.remove('hidden');
+}
+
+// Close modals on background click
+document.getElementById('act-modal').addEventListener('click',function(e){if(e.target===this)this.classList.add('hidden');});
+document.getElementById('sess-modal').addEventListener('click',function(e){if(e.target===this)this.classList.add('hidden');});
+document.getElementById('mem-modal').addEventListener('click',function(e){if(e.target===this)this.classList.add('hidden');});
+
+// ═══════════════════════════════════════════════════════════════════
+// CHECK-IN
+// ═══════════════════════════════════════════════════════════════════
+function selectReadiness(val, el){
+  checkinReadiness = val;
+  document.querySelectorAll('.rb').forEach(b=>b.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function submitCheckin(){
+  if(!checkinReadiness){ alert('Please select how you feel first.'); return; }
+  const note = document.getElementById('checkin-note').value;
+  const entry = {date:new Date().toISOString().split('T')[0],time:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),feel:checkinReadiness,note};
+  const existing = JSON.parse(localStorage.getItem('checkins')||'[]');
+  existing.unshift(entry);
+  if(existing.length>30) existing.pop();
+  localStorage.setItem('checkins', JSON.stringify(existing));
+  checkinReadiness=null;
+  document.querySelectorAll('.rb').forEach(b=>b.classList.remove('selected'));
+  document.getElementById('checkin-note').value='';
+  renderCheckinHistory();
+}
+
+function renderCheckinHistory(){
+  const entries = JSON.parse(localStorage.getItem('checkins')||'[]');
+  const feelLabels={great:'🟢 Ready to race',good:'🔵 Good',ok:'🟡 Moderate',tired:'🔴 Tired',injured:'🟣 Niggle'};
+  const feelColors={great:'col-good',good:'col-blue',ok:'col-warn',tired:'col-red',injured:'col-purple'};
+  document.getElementById('checkin-history').innerHTML = entries.slice(0,10).map(e=>`
+    <div class="checkin-entry">
+      <div class="ce-date">${e.date}<br><span style="font-size:9px;">${e.time}</span></div>
+      <div>
+        <div class="ce-feel ${feelColors[e.feel]||''}">${feelLabels[e.feel]||e.feel}</div>
+        ${e.note?`<div style="margin-top:2px;color:var(--muted)">${e.note}</div>`:''}
+      </div>
+    </div>`).join('') || '<div style="color:var(--muted);font-family:var(--mono);font-size:12px;">No check-ins yet.</div>';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// COACH MEMORY
+// ═══════════════════════════════════════════════════════════════════
+function showAddMemory(){ document.getElementById('mem-date').value=new Date().toISOString().split('T')[0]; document.getElementById('mem-modal').classList.remove('hidden'); }
+function closeMemModal(){ document.getElementById('mem-modal').classList.add('hidden'); }
+
+function logThisSession(name, day){
+  document.getElementById('mem-name').value = name;
+  document.getElementById('mem-date').value = new Date().toISOString().split('T')[0];
+  showAddMemory();
+  switchTab('memory');
+}
+
+function saveMemory(){
+  const entry = {
+    id:Date.now(),
+    name:document.getElementById('mem-name').value,
+    date:document.getElementById('mem-date').value,
+    status:document.getElementById('mem-status').value,
+    feel:document.getElementById('mem-feel').value,
+    paces:document.getElementById('mem-paces').value,
+    notes:document.getElementById('mem-notes').value,
+  };
+  const existing = JSON.parse(localStorage.getItem('coachMemory')||'[]');
+  existing.unshift(entry);
+  localStorage.setItem('coachMemory', JSON.stringify(existing));
+  closeMemModal();
+  document.getElementById('mem-name').value=''; document.getElementById('mem-notes').value='';
+  renderMemory();
+}
+
+function renderMemory(){
+  const entries = JSON.parse(localStorage.getItem('coachMemory')||'[]');
+  const statusClass={completed:'me-tag-done',partial:'me-tag-partial',missed:'me-tag-missed'};
+  const statusLabel={completed:'✅ Completed',partial:'⚠️ Partial',missed:'❌ Missed'};
+  const paceLabel={yes:'✅ Paces hit',close:'🟡 Close','no':'❌ Off pace','na':'N/A'};
+  const feelColor={10:'col-good',9:'col-good',8:'col-good',7:'col-blue',6:'col-blue',5:'col-warn',4:'col-warn',3:'col-red',2:'col-red',1:'col-red'};
+  document.getElementById('memory-list').innerHTML = entries.length ? entries.map(e=>`
+    <div class="memory-entry">
+      <div class="me-header">
+        <div class="me-name">${e.name}</div>
+        <div class="me-date">${e.date}</div>
+      </div>
+      <div class="me-status-row">
+        <span class="me-tag ${statusClass[e.status]||'badge-neutral'}">${statusLabel[e.status]||e.status}</span>
+        ${e.feel?`<span class="me-tag badge-blue">Feel: <span class="${feelColor[e.feel]||''}">${e.feel}/10</span></span>`:''}
+        ${e.paces?`<span class="me-tag badge-neutral">${paceLabel[e.paces]||e.paces}</span>`:''}
+      </div>
+      ${e.notes?`<div class="me-feel">${e.notes}</div>`:''}
+    </div>`).join('') : '<div style="color:var(--muted);font-family:var(--mono);font-size:12px;">No workouts logged yet. Click "Log workout" or tap a session in the Coach Plan tab.</div>';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════════════════════════════════
+function switchTab(name){
+  document.querySelectorAll('.tab-page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MAIN LOAD
+// ═══════════════════════════════════════════════════════════════════
+async function loadDashboard(){
+  let data;
+  try{ const r=await fetch('./garmin_data.json'); if(!r.ok)throw 0; data=await r.json(); }
+  catch(e){ data=getDemoData(); }
+  allData = data;
+
+  const runs=(data.activities||[]).filter(a=>a.activityType?.typeKey==='running');
+  const now = new Date();
+  document.getElementById('last-updated').textContent =
+    `Last updated: ${data.updated||now.toISOString().split('T')[0]} at ${data.updatedTime||now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} UTC`;
+
+  document.getElementById('loading').style.display='none';
+  document.getElementById('app').style.display='block';
+
+  renderRaceBanners();
+  renderKPIVitals(data);
+  renderKPILoad(data, runs);
+  renderKPIWeek(runs);
+  renderRunTable(runs);
+  renderLoadChart(runs);
+  renderCoachPlan(runs);
+  renderMetrics(data, runs);
+  renderCheckinHistory();
+  renderMemory();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DEMO DATA FALLBACK
+// ═══════════════════════════════════════════════════════════════════
+function getDemoData(){
   return {
-    updated: new Date().toISOString().split('T')[0],
-    vo2max: { generic: { vo2MaxValue: 57 } },
-    daily_summary: {
-      totalSteps: 9963, dailyStepGoal: 14120, restingHeartRate: 44,
-      lastSevenDaysAvgRestingHeartRate: 44, averageStressLevel: 17,
-      stressPercentage: 6.35, bodyBatteryMostRecentValue: 40,
-      bodyBatteryAtWakeTime: 100, bodyBatteryHighestValue: 100,
-      averageSpo2: 97, lowestSpo2: 89, vigorousIntensityMinutes: 51
-    },
-    sleep: {
-      dailySleepDTO: {
-        sleepTimeSeconds: 28980, deepSleepSeconds: 5580, remSleepSeconds: 5940,
-        lightSleepSeconds: 17460, awakeSleepSeconds: 1080,
-        sleepScores: { overall: { value: 90, qualifierKey: 'Excellent' } }
-      }
-    },
-    hrv: {
-      hrvSummary: { weeklyAvg: 61, lastNightAvg: 66, status: 'BALANCED' },
-      hrvReadings: Array.from({ length: 50 }, (_, i) => ({
-        hrvValue: 55 + Math.round(Math.sin(i * 0.4) * 18 + Math.random() * 10),
-        readingTimeLocal: `2026-05-04T${(20 + Math.floor(i / 8)).toString().padStart(2,'0')}:${((i % 8) * 7).toString().padStart(2,'0')}:00`
-      }))
-    },
-    activities: [
-      { activityId: 1, activityName: 'Tempo intervals', startTimeLocal: '2026-05-05 16:58:16', activityType: { typeKey: 'running' }, distance: 10035, duration: 2929, averageSpeed: 3.425, averageHR: 154, maxHR: 173, activityTrainingLoad: 157, trainingEffectLabel: 'TEMPO', hrTimeInZone_1: 1347, hrTimeInZone_2: 664, hrTimeInZone_3: 880, hrTimeInZone_4: 35, hrTimeInZone_5: 0, fastestSplit_5000: 1404 },
-      { activityId: 2, activityName: 'Long run', startTimeLocal: '2026-05-03 09:43:19', activityType: { typeKey: 'running' }, distance: 19196, duration: 6111, averageSpeed: 3.141, averageHR: 154, activityTrainingLoad: 227, trainingEffectLabel: 'LACTATE_THRESHOLD', hrTimeInZone_1: 3227, hrTimeInZone_2: 1575, hrTimeInZone_3: 649, hrTimeInZone_4: 657, hrTimeInZone_5: 0, fastestSplit_5000: 1377 },
-      { activityId: 3, activityName: 'Easy run', startTimeLocal: '2026-05-02 10:30:41', activityType: { typeKey: 'running' }, distance: 8164, duration: 2540, averageSpeed: 3.213, averageHR: 149, activityTrainingLoad: 127, trainingEffectLabel: 'AEROBIC_BASE', hrTimeInZone_1: 1595, hrTimeInZone_2: 895, hrTimeInZone_3: 43, hrTimeInZone_4: 0, hrTimeInZone_5: 0, fastestSplit_5000: 1671 },
-      { activityId: 4, activityName: 'Easy run', startTimeLocal: '2026-04-30 05:49:26', activityType: { typeKey: 'running' }, distance: 8937, duration: 3032, averageSpeed: 2.947, averageHR: 135, activityTrainingLoad: 75, trainingEffectLabel: 'AEROBIC_BASE', hrTimeInZone_1: 3032, hrTimeInZone_2: 0, hrTimeInZone_3: 0, hrTimeInZone_4: 0, hrTimeInZone_5: 0, fastestSplit_5000: 1751 },
-      { activityId: 5, activityName: 'Intervals', startTimeLocal: '2026-04-29 06:05:16', activityType: { typeKey: 'running' }, distance: 10749, duration: 3043, averageSpeed: 3.532, averageHR: 154, activityTrainingLoad: 184, trainingEffectLabel: 'LACTATE_THRESHOLD', hrTimeInZone_1: 1323, hrTimeInZone_2: 412, hrTimeInZone_3: 1295, hrTimeInZone_4: 9, hrTimeInZone_5: 0, fastestSplit_5000: 1334 },
-      { activityId: 6, activityName: 'VO₂max session', startTimeLocal: '2026-04-26 10:20:22', activityType: { typeKey: 'running' }, distance: 22706, duration: 6313, averageSpeed: 3.597, averageHR: 162, activityTrainingLoad: 349, trainingEffectLabel: 'VO2MAX', hrTimeInZone_1: 745, hrTimeInZone_2: 2374, hrTimeInZone_3: 1798, hrTimeInZone_4: 1153, hrTimeInZone_5: 229, fastestSplit_5000: 1252 },
-      { activityId: 7, activityName: 'Easy run', startTimeLocal: '2026-04-25 07:42:05', activityType: { typeKey: 'running' }, distance: 8829, duration: 2623, averageSpeed: 3.365, averageHR: 150, activityTrainingLoad: 123, trainingEffectLabel: 'AEROBIC_BASE', hrTimeInZone_1: 1435, hrTimeInZone_2: 1180, hrTimeInZone_3: 0, hrTimeInZone_4: 0, hrTimeInZone_5: 0, fastestSplit_5000: 1547 },
-      { activityId: 8, activityName: 'Intervals', startTimeLocal: '2026-04-22 16:05:34', activityType: { typeKey: 'running' }, distance: 17564, duration: 4959, averageSpeed: 3.541, averageHR: 158, activityTrainingLoad: 302, trainingEffectLabel: 'LACTATE_THRESHOLD', hrTimeInZone_1: 1487, hrTimeInZone_2: 979, hrTimeInZone_3: 1118, hrTimeInZone_4: 1332, hrTimeInZone_5: 8, fastestSplit_5000: 1312 },
+    updated:new Date().toISOString().split('T')[0],
+    updatedTime:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
+    race_predictions:{time5K:1149,time10K:2410,timeHalfMarathon:5240,timeMarathon:11490},
+    vo2max:{generic:{vo2MaxValue:57,vo2MaxPreciseValue:57.1}},
+    vo2max_history:[{date:'2026-01-02',data:[{generic:{vo2MaxPreciseValue:55.9}}]},{date:'2026-02-01',data:[{generic:{vo2MaxPreciseValue:56.3}}]},{date:'2026-03-01',data:[{generic:{vo2MaxPreciseValue:56.4}}]},{date:'2026-04-01',data:[{generic:{vo2MaxPreciseValue:56.6}}]},{date:'2026-05-01',data:[{generic:{vo2MaxPreciseValue:57.0}}]},{date:'2026-05-05',data:[{generic:{vo2MaxPreciseValue:57.1}}]}],
+    daily_summary:{totalSteps:9963,dailyStepGoal:14120,restingHeartRate:44,lastSevenDaysAvgRestingHeartRate:44,averageStressLevel:17,stressPercentage:6.35,bodyBatteryMostRecentValue:40,bodyBatteryAtWakeTime:100,averageSpo2:97,lowestSpo2:89,vigorousIntensityMinutes:51},
+    sleep:{dailySleepDTO:{sleepTimeSeconds:28980,deepSleepSeconds:5580,remSleepSeconds:5940,lightSleepSeconds:17460,awakeSleepSeconds:1080,sleepScores:{overall:{value:90,qualifierKey:'Excellent'}}}},
+    hrv:{hrvSummary:{weeklyAvg:61,lastNightAvg:66,status:'BALANCED',baseline:{balancedLow:57,balancedUpper:73}},hrvReadings:Array.from({length:50},(_,i)=>({hrvValue:55+Math.round(Math.sin(i*.4)*18+Math.random()*10),readingTimeLocal:`2026-05-04T22:${(i*8).toString().padStart(2,'0')}:00`}))},
+    activities:[
+      {activityId:1,activityName:'Tempo intervals',startTimeLocal:'2026-05-05 16:58:16',activityType:{typeKey:'running'},distance:10035,duration:2929,averageSpeed:3.425,averageHR:154,maxHR:173,activityTrainingLoad:157,trainingEffectLabel:'TEMPO',averageRunningCadenceInStepsPerMinute:174.3,avgGroundContactTime:231,avgVerticalOscillation:10.8,avgStrideLength:117,hrTimeInZone_1:1347,hrTimeInZone_2:664,hrTimeInZone_3:880,hrTimeInZone_4:35,hrTimeInZone_5:0,aerobicTrainingEffect:3.6,anaerobicTrainingEffect:2.1,fastestSplit_1000:213,fastestSplit_5000:1133,calories:720},
+      {activityId:2,activityName:'Long run',startTimeLocal:'2026-05-03 09:43:19',activityType:{typeKey:'running'},distance:19196,duration:6111,averageSpeed:3.141,averageHR:154,maxHR:178,activityTrainingLoad:227,trainingEffectLabel:'LACTATE_THRESHOLD',averageRunningCadenceInStepsPerMinute:164.6,avgGroundContactTime:241,avgVerticalOscillation:10.6,avgStrideLength:114,hrTimeInZone_1:3227,hrTimeInZone_2:1575,hrTimeInZone_3:649,hrTimeInZone_4:657,hrTimeInZone_5:0,aerobicTrainingEffect:4.2,fastestSplit_5000:1377,calories:1290},
+      {activityId:3,activityName:'Easy run',startTimeLocal:'2026-05-02 10:30:41',activityType:{typeKey:'running'},distance:8164,duration:2540,averageSpeed:3.213,averageHR:149,maxHR:163,activityTrainingLoad:127,trainingEffectLabel:'AEROBIC_BASE',averageRunningCadenceInStepsPerMinute:170.4,avgGroundContactTime:237,avgVerticalOscillation:11.5,avgStrideLength:114,hrTimeInZone_1:1595,hrTimeInZone_2:895,hrTimeInZone_3:43,hrTimeInZone_4:0,hrTimeInZone_5:0,aerobicTrainingEffect:3.2,calories:562},
+      {activityId:4,activityName:'Easy run',startTimeLocal:'2026-04-30 05:49:26',activityType:{typeKey:'running'},distance:8937,duration:3032,averageSpeed:2.947,averageHR:135,maxHR:153,activityTrainingLoad:75,trainingEffectLabel:'AEROBIC_BASE',averageRunningCadenceInStepsPerMinute:173.6,avgGroundContactTime:246,avgVerticalOscillation:10.3,avgStrideLength:102,hrTimeInZone_1:3032,hrTimeInZone_2:0,hrTimeInZone_3:0,hrTimeInZone_4:0,hrTimeInZone_5:0,aerobicTrainingEffect:2.8,calories:591},
+      {activityId:5,activityName:'Intervals',startTimeLocal:'2026-04-29 06:05:16',activityType:{typeKey:'running'},distance:10749,duration:3043,averageSpeed:3.532,averageHR:154,maxHR:175,activityTrainingLoad:184,trainingEffectLabel:'LACTATE_THRESHOLD',averageRunningCadenceInStepsPerMinute:180.5,avgGroundContactTime:224,avgVerticalOscillation:10.2,avgStrideLength:117,hrTimeInZone_1:1323,hrTimeInZone_2:412,hrTimeInZone_3:1295,hrTimeInZone_4:9,hrTimeInZone_5:0,aerobicTrainingEffect:3.9,fastestSplit_5000:1334,calories:738},
+      {activityId:6,activityName:'VO₂max session',startTimeLocal:'2026-04-26 10:20:22',activityType:{typeKey:'running'},distance:22706,duration:6313,averageSpeed:3.597,averageHR:162,maxHR:182,activityTrainingLoad:349,trainingEffectLabel:'VO2MAX',averageRunningCadenceInStepsPerMinute:176.7,avgGroundContactTime:225,avgVerticalOscillation:10.8,avgStrideLength:122,hrTimeInZone_1:745,hrTimeInZone_2:2374,hrTimeInZone_3:1798,hrTimeInZone_4:1153,hrTimeInZone_5:229,aerobicTrainingEffect:5.0,fastestSplit_5000:1252,calories:1592},
+      {activityId:7,activityName:'Easy run',startTimeLocal:'2026-04-25 07:42:05',activityType:{typeKey:'running'},distance:8829,duration:2623,averageSpeed:3.365,averageHR:150,maxHR:164,activityTrainingLoad:123,trainingEffectLabel:'AEROBIC_BASE',averageRunningCadenceInStepsPerMinute:177.1,avgGroundContactTime:234,avgVerticalOscillation:10.3,avgStrideLength:114,hrTimeInZone_1:1435,hrTimeInZone_2:1180,hrTimeInZone_3:0,hrTimeInZone_4:0,hrTimeInZone_5:0,aerobicTrainingEffect:3.3,calories:615},
+      {activityId:8,activityName:'Intervals',startTimeLocal:'2026-04-22 16:05:34',activityType:{typeKey:'running'},distance:17564,duration:4959,averageSpeed:3.541,averageHR:158,maxHR:180,activityTrainingLoad:302,trainingEffectLabel:'LACTATE_THRESHOLD',averageRunningCadenceInStepsPerMinute:174.7,avgGroundContactTime:227,avgVerticalOscillation:11.1,avgStrideLength:122,hrTimeInZone_1:1487,hrTimeInZone_2:979,hrTimeInZone_3:1118,hrTimeInZone_4:1332,hrTimeInZone_5:8,aerobicTrainingEffect:4.8,fastestSplit_5000:1312,calories:1221},
     ]
   };
 }

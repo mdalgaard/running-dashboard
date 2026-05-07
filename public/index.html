@@ -910,6 +910,48 @@ async function loadCheckins() {
     renderCheckinHistory([]);
   }
 }
+
+function renderCheckinHistory(entries) {
+  const feelLabels = {
+    great: '🟢 Ready to race', good: '🔵 Good',
+    ok: '🟡 Moderate', tired: '🔴 Tired', injured: '🟣 Niggle'
+  };
+  const feelColors = {
+    great: 'col-good', good: 'col-blue',
+    ok: 'col-warn', tired: 'col-red', injured: 'col-purple'
+  };
+  document.getElementById('checkin-history').innerHTML =
+    (entries || []).slice(0, 10).map(e => `
+      <div class="checkin-entry">
+        <div class="ce-date">${e.date}<br><span style="font-size:9px;">${e.time}</span></div>
+        <div>
+          <div class="ce-feel ${feelColors[e.feel] || ''}">${feelLabels[e.feel] || e.feel}</div>
+          ${e.note ? `<div style="margin-top:2px;color:var(--muted)">${e.note}</div>` : ''}
+        </div>
+      </div>`).join('')
+    || '<div style="color:var(--muted);font-family:var(--mono);font-size:12px;">No check-ins yet.</div>';
+}
+
+async function submitCheckin() {
+  if (!checkinReadiness) { alert('Please select how you feel first.'); return; }
+  const note = document.getElementById('checkin-note').value;
+  const btn  = document.querySelector('.checkin-submit');
+  btn.textContent = 'Saving…'; btn.disabled = true;
+  try {
+    await fetch('/api/checkin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ feel: checkinReadiness, note })
+    });
+    checkinReadiness = null;
+    document.querySelectorAll('.rb').forEach(b => b.classList.remove('selected'));
+    document.getElementById('checkin-note').value = '';
+    await loadCheckins();
+  } catch(e) {
+    alert('Save failed — check your Vercel function logs.');
+  }
+  btn.textContent = 'Save check-in'; btn.disabled = false;
+}
   
 async function submitCheckin() {
   if (!checkinReadiness) { alert('Please select how you feel first.'); return; }
@@ -934,18 +976,6 @@ async function submitCheckin() {
   btn.textContent = 'Save check-in'; btn.disabled = false;
 }
 
-function renderCheckinHistory(entries) {
-  const feelLabels = { great:'🟢 Ready to race', good:'🔵 Good', ok:'🟡 Moderate', tired:'🔴 Tired', injured:'🟣 Niggle' };
-  const feelColors = { great:'col-good', good:'col-blue', ok:'col-warn', tired:'col-red', injured:'col-purple' };
-  document.getElementById('checkin-history').innerHTML = (entries||[]).slice(0,10).map(e => `
-    <div class="checkin-entry">
-      <div class="ce-date">${e.date}<br><span style="font-size:9px;">${e.time}</span></div>
-      <div>
-        <div class="ce-feel ${feelColors[e.feel]||''}">${feelLabels[e.feel]||e.feel}</div>
-        ${e.note ? `<div style="margin-top:2px;color:var(--muted)">${e.note}</div>` : ''}
-      </div>
-    </div>`).join('') || '<div style="color:var(--muted);font-family:var(--mono);font-size:12px;">No check-ins yet.</div>';
-}
 
 // ═══════════════════════════════════════════════════════════════════
 // COACH MEMORY
@@ -1034,7 +1064,7 @@ async function loadDashboard(){
   renderLoadChart(runs);
   renderCoachPlan(runs);
   renderMetrics(data, runs);
-  renderCheckinHistory();
+  await loadCheckins();
   renderMemory();
 }
 

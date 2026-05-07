@@ -43,7 +43,7 @@ print("Fetching lactate threshold…")
 lt = client.get_lactate_threshold()
 
 print("Fetching personal records…")
-prs = client.get_personal_records()
+prs = []
 
 print("Fetching activities (last 100)…")
 activities = client.get_activities(0, 100)

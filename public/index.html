@@ -449,24 +449,52 @@ function effBadge(label){
 // LOAD METRICS (TrainingPeaks-style ATL/CTL/TSB)
 // ═══════════════════════════════════════════════════════════════════
 function computeLoadMetrics(runs){
-  const today = new Date('2026-05-07');
+  // Proper EWMA (exponential weighted moving average) — same method as TrainingPeaks
+  // CTL time constant = 42 days (chronic / fitness)
+  // ATL time constant = 7 days  (acute / fatigue)
+  const CTL_TC = 42, ATL_TC = 7;
+  const ctlFactor = 1 - Math.exp(-1/CTL_TC);
+  const atlFactor = 1 - Math.exp(-1/ATL_TC);
+
+  // Build daily load map from all activities
   const daily = {};
   runs.forEach(r=>{
     const d = r.startTimeLocal?.substring(0,10);
     if(d) daily[d] = (daily[d]||0) + (r.activityTrainingLoad||0);
   });
-  function sumDays(n){ let s=0; for(let i=0;i<n;i++){const d=new Date(today);d.setDate(d.getDate()-i);s+=daily[d.toISOString().split('T')[0]]||0;} return s; }
-  const atl = sumDays(7)/7;
-  const ctl = sumDays(42)/42;
+
+  // Walk every day for 90 days up to today, applying EWMA
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  let ctl = 0, atl = 0;
+  for(let i=89; i>=0; i--){
+    const d = new Date(today);
+    d.setDate(today.getDate()-i);
+    const key = d.toISOString().split('T')[0];
+    const load = daily[key]||0;
+    ctl = ctl + (load - ctl) * ctlFactor;
+    atl = atl + (load - atl) * atlFactor;
+  }
   const tsb = ctl - atl;
-  const acLoad = sumDays(7); // acute 7-day absolute
-  const chLoad = sumDays(42)/6; // chronic weekly avg
-  const rampRate = chLoad>0?(acLoad/7 - chLoad/7)/chLoad*100:0;
-  return {atl:Math.round(atl*10)/10, ctl:Math.round(ctl*10)/10, tsb:Math.round(tsb*10)/10, acLoad:Math.round(acLoad), rampRate:Math.round(rampRate)};
+
+  // Ramp rate: compare this week's daily avg vs last 4-week daily avg
+  function sumDays(from, n){ let s=0; for(let i=from;i<from+n;i++){const d=new Date(today);d.setDate(today.getDate()-i);s+=daily[d.toISOString().split('T')[0]]||0;} return s; }
+  const acWeekly = sumDays(0,7);
+  const chWeekly = sumDays(7,28)/4;
+  const rampRate = chWeekly>0 ? Math.round((acWeekly - chWeekly)/chWeekly*100) : 0;
+
+  return {
+    atl:  Math.round(atl*10)/10,
+    ctl:  Math.round(ctl*10)/10,
+    tsb:  Math.round(tsb*10)/10,
+    acLoad: Math.round(acWeekly),
+    rampRate
+  };
 }
 
 function weekKm(runs, weekOffset=0){
-  const today = new Date('2026-05-07');
+  const today = new Date();
+  today.setHours(0,0,0,0);
   const dow = today.getDay()==0?6:today.getDay()-1; // Mon=0
   const start = new Date(today); start.setDate(today.getDate()-dow-weekOffset*7);
   const end = new Date(start); end.setDate(start.getDate()+7);
@@ -502,17 +530,22 @@ function renderRaceBanners(){
 
 function renderKPIVitals(data){
   const s = data.daily_summary||{};
-  const sleep = data.sleep?.dailySleepDTO||{};
+  const sleepDTO = data.sleep?.dailySleepDTO || data.sleep?.dailySleepDTO || {};
+  // Garmin nests sleep score at dailySleepDTO.sleepScores.overall.value
+  const sleepScore = sleepDTO.sleepScores?.overall?.value
+    ?? data.sleep?.sleepScores?.overall?.value
+    ?? s.averageSleepingStressLevel  // fallback
+    ?? 0;
+  const sleepQuality = sleepDTO.sleepScores?.overall?.qualifierKey ?? 'Unknown';
   const hrv = data.hrv?.hrvSummary||{};
-  const sleepScore = sleep.sleepScores?.overall?.value??90;
   const bb = s.bodyBatteryMostRecentValue??40;
   const hr = s.restingHeartRate??44;
   const hrv7 = hrv.weeklyAvg??61;
   const hrvLast = hrv.lastNightAvg??66;
   const stress = s.averageStressLevel??17;
   document.getElementById('kpi-vitals').innerHTML = [
-    kpiCard('😴 Sleep score', sleepScore, sleep.sleepScores?.overall?.qualifierKey??'Excellent', sleepScore>=80?'col-good':sleepScore>=60?'col-warn':'col-red', sleepScore>=80?'✓ In range':'↓ Below optimal', sleepScore>=80?'badge-good':'badge-warn'),
-    kpiCard('💓 HRV last night', hrvLast+'ms', `7d avg: ${hrv7}ms · ${hrv.status??'BALANCED'}`, hrvLast>=hrv.baseline?.balancedLow??55?'col-good':'col-warn', hrv.status==='BALANCED'?'✓ Balanced':'⚠ Off baseline', hrv.status==='BALANCED'?'badge-good':'badge-warn'),
+    kpiCard('😴 Sleep score', sleepScore||'—', sleepQuality, sleepScore>=80?'col-good':sleepScore>=60?'col-warn':'col-red', sleepScore>=80?'✓ In range':'↓ Below optimal', sleepScore>=80?'badge-good':'badge-warn'),
+    kpiCard('💓 HRV last night', (hrv.lastNightAvg||'—')+'ms', `7d avg: ${hrv.weeklyAvg||'—'}ms · ${hrv.status??'—'}`, (hrv.lastNightAvg||0)>=(hrv.baseline?.balancedLow||55)?'col-good':'col-warn', hrv.status==='BALANCED'?'✓ Balanced':'⚠ Off baseline', hrv.status==='BALANCED'?'badge-good':'badge-warn'),
     kpiCard('❤️ Resting HR', hr+' bpm', `7d avg: ${s.lastSevenDaysAvgRestingHeartRate??44} bpm`, hr<=50?'col-good':hr<=60?'col-warn':'col-red', hr<=50?'✓ Excellent':'ℹ Track trend', hr<=50?'badge-good':'badge-blue'),
     kpiCard('🔋 Body Battery', bb, `Woke at ${s.bodyBatteryAtWakeTime??100} · now ${bb}`, bb>=60?'col-good':bb>=30?'col-warn':'col-red', bb>=60?'✓ High':'↓ Lower than ideal', bb>=60?'badge-good':'badge-warn'),
     kpiCard('🧠 Stress', stress, `${(s.stressPercentage??6).toFixed(0)}% of day stressed`, stress<30?'col-good':stress<50?'col-warn':'col-red', stress<30?'✓ Low':'⚠ Monitor', stress<30?'badge-good':'badge-warn'),
@@ -749,30 +782,85 @@ const PLAN = [
 ];
 
 function renderCoachPlan(runs){
-  // Dynamic assessment based on real data
   const m = computeLoadMetrics(runs);
-  const pred5k = allData?.race_predictions?.time5K||1149;
-  document.getElementById('coach-assessment').innerHTML = `
-    Your <strong>sleep (90/100)</strong> and <strong>HRV (66ms, BALANCED)</strong> are solid. TSB is currently
-    <strong style="color:${m.tsb>=-10?'#f59e0b':'#ef4444'}">${m.tsb.toFixed(1)}</strong>
-    — you're carrying <em>moderate fatigue</em> from last week's high training load.
-    <br><br>
-    ⚠️ <strong style="color:var(--red)">Copenhagen Marathon is this Sunday</strong> — the entire week before is structured around this. Post-marathon recovery starts Monday.
-    <br><br>
-    Your 5K prediction is <strong style="color:var(--warn)">${fmtTime(pred5k)}</strong> vs your goal of
-    <strong style="color:var(--accent)">18:00</strong> — a gap of <strong>${fmtTime(pred5k-1080)}</strong>.
-    VO₂max is trending up (55.8 → 57.1 since Jan). Key limiting factor: <strong>speed endurance</strong> at 3:36/km.
-    Plan: 3–4 runs/week · long run weekends · no morning intervals · gym/bike cross-training welcome on rest days.`;
+  const checkin = getTodayCheckin();
 
+  // Check-in banner
+  const feelLabels={great:'🟢 Ready to race',good:'🔵 Good',ok:'🟡 Moderate',tired:'🔴 Tired',injured:'🟣 Niggle'};
+  const checkinBannerColor = {
+    great:'rgba(34,212,164,.15)', good:'rgba(59,130,246,.1)',
+    ok:'rgba(245,158,11,.1)', tired:'rgba(239,68,68,.1)', injured:'rgba(167,139,250,.1)'
+  };
+  const checkinBorderColor = {
+    great:'rgba(34,212,164,.35)', good:'rgba(59,130,246,.3)',
+    ok:'rgba(245,158,11,.3)', tired:'rgba(239,68,68,.3)', injured:'rgba(167,139,250,.3)'
+  };
+
+  // Coach message adjusted by readiness
+  let readinessMsg = '';
+  let planAdjustment = '';
+  if(checkin){
+    const feel = checkin.feel;
+    const noteText = checkin.note ? ` You noted: <em>"${checkin.note}"</em>` : '';
+    if(feel==='tired'){
+      readinessMsg = `<br><br>⚠️ <strong style="color:var(--warn)">Today's check-in: Tired/Fatigued.</strong>${noteText} Coach adjusts: replace any hard session today with easy or rest. Prioritise sleep tonight.`;
+      planAdjustment = 'tired';
+    } else if(feel==='injured'){
+      readinessMsg = `<br><br>🟣 <strong style="color:var(--purple)">Today's check-in: Niggle/Injury flagged.</strong>${noteText} Coach adjusts: NO running today. If persistent >2 days, consult physio.`;
+      planAdjustment = 'injured';
+    } else if(feel==='great'){
+      readinessMsg = `<br><br>🟢 <strong style="color:var(--accent)">Today's check-in: Ready to race!</strong>${noteText} Coach says: great day to hit a quality session — execute your target paces confidently.`;
+      planAdjustment = 'great';
+    } else if(feel==='ok'){
+      readinessMsg = `<br><br>🟡 <strong style="color:var(--warn)">Today's check-in: Moderate.</strong>${noteText} Coach says: go ahead with today's session but stay at the easier end of target pace ranges.`;
+      planAdjustment = 'ok';
+    } else {
+      readinessMsg = `<br><br>🔵 <strong style="color:var(--blue)">Today's check-in: Feeling good.</strong>${noteText} Proceed with plan as written.`;
+    }
+  }
+
+  document.getElementById('coach-assessment').innerHTML = `
+    Your <strong>TSB (Form) is ${m.tsb.toFixed(1)}</strong> — ${m.tsb>5?'you are <strong style="color:var(--accent)">fresh</strong>, good day to push':m.tsb>=-15?'<strong style="color:var(--warn)">moderate fatigue</strong>, train smart':m.tsb>=-30?'<strong style="color:var(--warn)">significant fatigue</strong>, protect recovery':'<strong style="color:var(--red)">high fatigue</strong>, prioritise rest'}.
+    CTL (fitness) is <strong>${m.ctl.toFixed(1)}</strong> and ATL (fatigue) is <strong>${m.atl.toFixed(1)}</strong>.
+    <br><br>
+    ⚠️ <strong style="color:var(--red)">Copenhagen Marathon is this Sunday</strong> — treat as a big experience run at controlled effort.
+    Post-marathon recovery takes priority next week before returning to 5K speed work.
+    <br><br>
+    Your 5K target is <strong style="color:var(--accent)">Sub 18:00 (3:36/km)</strong>.
+    Half Marathon goal: <strong style="color:var(--blue)">Sub 1:28 on Sep 20</strong>.
+    Weekly frequency: <strong>3–4 runs</strong> · long run weekends · doubles allowed (no morning intervals).
+    ${readinessMsg}`;
+
+  // Render plan with adjustment highlight on today's card
+  const todayStr = new Date().toISOString().split('T')[0];
   const scroll = document.getElementById('week-scroll');
   scroll.innerHTML = PLAN.map((s,i)=>{
-    const isToday = s.date===new Date().toISOString().split('T')[0];
+    const isToday = s.date===todayStr;
     const isRace = s.type==='race';
+    let adjustedName = s.name;
+    let adjustedDesc = s.desc;
+    let adjustedBadge = s.badge;
+    let adjustedBadgeClass = s.badgeClass;
+
+    // If today and athlete flagged tired/injured, override today's card
+    if(isToday && planAdjustment==='tired' && s.type!=='recovery'){
+      adjustedName = '⚠️ Adjusted: Easy or Rest';
+      adjustedDesc = 'Coach has adjusted today based on your check-in. Replace planned session with a gentle 20–30 min easy jog or full rest.';
+      adjustedBadge = 'Adjusted';
+      adjustedBadgeClass = 'badge-warn';
+    }
+    if(isToday && planAdjustment==='injured'){
+      adjustedName = '🟣 Adjusted: Rest — Niggle flagged';
+      adjustedDesc = 'Coach has removed today\'s session. Rest completely. Ice/elevate any sore area. Reassess tomorrow.';
+      adjustedBadge = 'Rest';
+      adjustedBadgeClass = 'badge-purple';
+    }
+
     return `<div class="session-card ${isToday?'today':''} ${isRace?'race':''}" onclick="showSessionModal(${i})">
       <div class="sc-day">${s.day}${isToday?' · TODAY':''}</div>
-      <div><span class="kpi-badge ${s.badgeClass}" style="margin:0 0 6px;display:inline-flex;">${s.badge}</span></div>
-      <div class="sc-name">${s.name}</div>
-      <div class="sc-desc">${s.desc.substring(0,100)}…</div>
+      <div><span class="kpi-badge ${adjustedBadgeClass}" style="margin:0 0 6px;display:inline-flex;">${adjustedBadge}</span></div>
+      <div class="sc-name">${adjustedName}</div>
+      <div class="sc-desc">${adjustedDesc.substring(0,110)}…</div>
       <div class="sc-details">
         ${s.paces.slice(0,2).map(p=>`<span class="sc-detail">${p}</span>`).join('')}
       </div>
@@ -901,81 +989,60 @@ function selectReadiness(val, el){
   el.classList.add('selected');
 }
 
-async function loadCheckins() {
-  try {
-    const r = await fetch('./checkins.json?t=' + Date.now());
-    const entries = await r.json();
-    renderCheckinHistory(entries);
-  } catch(e) {
-    renderCheckinHistory([]);
-  }
-}
-
-function renderCheckinHistory(entries) {
-  const feelLabels = {
-    great: '🟢 Ready to race', good: '🔵 Good',
-    ok: '🟡 Moderate', tired: '🔴 Tired', injured: '🟣 Niggle'
+function submitCheckin(){
+  if(!checkinReadiness){ alert('Please select how you feel first.'); return; }
+  const note = document.getElementById('checkin-note').value.trim();
+  const entry = {
+    date: new Date().toISOString().split('T')[0],
+    time: new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),
+    feel: checkinReadiness,
+    note
   };
-  const feelColors = {
-    great: 'col-good', good: 'col-blue',
-    ok: 'col-warn', tired: 'col-red', injured: 'col-purple'
-  };
-  document.getElementById('checkin-history').innerHTML =
-    (entries || []).slice(0, 10).map(e => `
-      <div class="checkin-entry">
-        <div class="ce-date">${e.date}<br><span style="font-size:9px;">${e.time}</span></div>
-        <div>
-          <div class="ce-feel ${feelColors[e.feel] || ''}">${feelLabels[e.feel] || e.feel}</div>
-          ${e.note ? `<div style="margin-top:2px;color:var(--muted)">${e.note}</div>` : ''}
-        </div>
-      </div>`).join('')
-    || '<div style="color:var(--muted);font-family:var(--mono);font-size:12px;">No check-ins yet.</div>';
-}
+  const existing = JSON.parse(localStorage.getItem('checkins')||'[]');
+  existing.unshift(entry);
+  if(existing.length>60) existing.pop();
+  localStorage.setItem('checkins', JSON.stringify(existing));
 
-async function submitCheckin() {
-  if (!checkinReadiness) { alert('Please select how you feel first.'); return; }
-  const note = document.getElementById('checkin-note').value;
-  const btn  = document.querySelector('.checkin-submit');
-  btn.textContent = 'Saving…'; btn.disabled = true;
-  try {
-    await fetch('/api/checkin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ feel: checkinReadiness, note })
-    });
-    checkinReadiness = null;
-    document.querySelectorAll('.rb').forEach(b => b.classList.remove('selected'));
-    document.getElementById('checkin-note').value = '';
-    await loadCheckins();
-  } catch(e) {
-    alert('Save failed — check your Vercel function logs.');
-  }
-  btn.textContent = 'Save check-in'; btn.disabled = false;
-}
-  
-async function submitCheckin() {
-  if (!checkinReadiness) { alert('Please select how you feel first.'); return; }
-  const note = document.getElementById('checkin-note').value;
+  // Reset UI
+  checkinReadiness = null;
+  document.querySelectorAll('.rb').forEach(b=>b.classList.remove('selected'));
+  document.getElementById('checkin-note').value = '';
+
+  // Show confirmation
   const btn = document.querySelector('.checkin-submit');
-  btn.textContent = 'Saving…'; btn.disabled = true;
+  btn.textContent = '✅ Saved!';
+  setTimeout(()=>{ btn.textContent='Save check-in'; }, 2000);
 
-  try {
-    await fetch('/api/checkin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ feel: checkinReadiness, note })
-    });
-    checkinReadiness = null;
-    document.querySelectorAll('.rb').forEach(b => b.classList.remove('selected'));
-    document.getElementById('checkin-note').value = '';
-    // Re-fetch checkins.json to show the new entry
-    await loadCheckins();
-  } catch(e) {
-    alert('Save failed — check your Vercel function logs.');
+  // Refresh history display
+  renderCheckinHistory();
+
+  // Re-render coach assessment so it picks up new readiness
+  if(allData){
+    const runs = (allData.activities||[]).filter(a=>a.activityType?.typeKey==='running');
+    renderCoachPlan(runs);
   }
-  btn.textContent = 'Save check-in'; btn.disabled = false;
 }
 
+function renderCheckinHistory(){
+  const entries = JSON.parse(localStorage.getItem('checkins')||'[]');
+  const feelLabels={great:'🟢 Ready to race',good:'🔵 Good',ok:'🟡 Moderate',tired:'🔴 Tired',injured:'🟣 Niggle'};
+  const feelColors={great:'col-good',good:'col-blue',ok:'col-warn',tired:'col-red',injured:'col-purple'};
+  document.getElementById('checkin-history').innerHTML = entries.slice(0,10).map(e=>`
+    <div class="checkin-entry">
+      <div class="ce-date">${e.date}<br><span style="font-size:9px;">${e.time}</span></div>
+      <div>
+        <div class="ce-feel ${feelColors[e.feel]||''}">${feelLabels[e.feel]||e.feel}</div>
+        ${e.note?`<div style="margin-top:2px;color:var(--muted)">${e.note}</div>`:''}
+      </div>
+    </div>`).join('') || '<div style="color:var(--muted);font-family:var(--mono);font-size:12px;">No check-ins yet.</div>';
+}
+
+// Returns today's check-in feel string, or null
+function getTodayCheckin(){
+  const entries = JSON.parse(localStorage.getItem('checkins')||'[]');
+  const today = new Date().toISOString().split('T')[0];
+  return entries.find(e=>e.date===today) || null;
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // COACH MEMORY
@@ -1064,7 +1131,7 @@ async function loadDashboard(){
   renderLoadChart(runs);
   renderCoachPlan(runs);
   renderMetrics(data, runs);
-  await loadCheckins();
+  renderCheckinHistory();
   renderMemory();
 }
 

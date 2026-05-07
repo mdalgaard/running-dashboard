@@ -2,8 +2,11 @@ name: Fetch Garmin Data
 
 on:
   schedule:
-    - cron: '*/30 * * * *'   # runs every 30 minutes
-  workflow_dispatch:           # lets you trigger manually too
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true   # ← fixes the warning
 
 jobs:
   fetch:
@@ -18,7 +21,7 @@ jobs:
       - name: Install dependencies
         run: pip install garminconnect
 
-      - name: Fetch data
+      - name: Fetch Garmin data
         env:
           GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
           GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
@@ -29,5 +32,5 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add public/garmin_data.json
-          git diff --staged --quiet || git commit -m "chore: update garmin data"
+          git diff --staged --quiet || git commit -m "chore: update garmin data $(date -u '+%Y-%m-%d %H:%M') UTC"
           git push

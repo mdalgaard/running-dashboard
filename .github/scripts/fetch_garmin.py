@@ -34,7 +34,7 @@ stress = client.get_stress_data(t)
 
 print("Fetching VO2max (today + history)…")
 vo2 = client.get_max_metrics(t)
-vo2_history = client.get_max_metrics_range(jan1, t)  # full year history
+vo2_history = []
 
 print("Fetching race predictions…")
 race_preds = client.get_race_predictions()

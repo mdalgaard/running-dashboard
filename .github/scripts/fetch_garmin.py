@@ -48,9 +48,8 @@ prs = []
 print("Fetching activities (last 100)…")
 activities = client.get_activities(0, 100)
 
-print("Fetching resting HR trend (90 days)…")
-ninety_ago = (today - timedelta(days=90)).isoformat()
-rhr_trend = client.get_resting_heart_rate(t)
+print("Skipping resting HR trend…")
+rhr_trend = []
 
 now = datetime.utcnow()
 data = {

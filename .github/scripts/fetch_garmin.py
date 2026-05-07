@@ -1,78 +1,78 @@
 """
-fetch_garmin.py — fetches all data needed by the upgraded dashboard.
+fetch_garmin.py — fetches essential Garmin data for the running dashboard.
 Place at: .github/scripts/fetch_garmin.py
 """
-import garminconnect, json, os
+import garminconnect
+import json
+import os
+import time
 from datetime import date, timedelta, datetime
 
 email    = os.environ["GARMIN_EMAIL"]
 password = os.environ["GARMIN_PASSWORD"]
 
-client = garminconnect.Garmin(email, password)
-client.login()
+# ── Login with retry (handles Garmin's IP rate limiting) ──────────────────
+def login_with_retry(email, password, attempts=3, delay=15):
+    for i in range(attempts):
+        try:
+            client = garminconnect.Garmin(email, password)
+            client.login()
+            print("Logged in to Garmin Connect")
+            return client
+        except Exception as e:
+            print(f"Login attempt {i+1} failed: {e}")
+            if i < attempts - 1:
+                print(f"Waiting {delay}s before retry...")
+                time.sleep(delay)
+    raise Exception("Could not log in after multiple attempts")
+
+client = login_with_retry(email, password)
 
 today     = date.today()
 yesterday = today - timedelta(days=1)
 t         = today.isoformat()
 y         = yesterday.isoformat()
-jan1      = date(today.year, 1, 1).isoformat()
 
-print("Fetching daily summary…")
-daily = client.get_stats(t)
+# ── Helper: fetch with fallback ────────────────────────────────────────────
+def safe_fetch(label, fn, *args, **kwargs):
+    try:
+        result = fn(*args, **kwargs)
+        print(f"OK: {label}")
+        return result
+    except Exception as e:
+        print(f"SKIP: {label} — {e}")
+        return None
 
-print("Fetching sleep…")
-sleep = client.get_sleep_data(y)
+# ── Fetch only what matters ────────────────────────────────────────────────
+daily      = safe_fetch("Daily summary",     client.get_stats,            t)
+sleep      = safe_fetch("Sleep",             client.get_sleep_data,       y)
+hrv        = safe_fetch("HRV",               client.get_hrv_data,         y)
+bb         = safe_fetch("Body battery",      client.get_body_battery,     t)
+stress     = safe_fetch("Stress",            client.get_stress_data,      t)
+vo2        = safe_fetch("VO2max",            client.get_max_metrics,      t)
+lt         = safe_fetch("Lactate threshold", client.get_lactate_threshold)
+activities = safe_fetch("Activities",        client.get_activities,       0, 100)
 
-print("Fetching HRV…")
-hrv = client.get_hrv_data(y)
-
-print("Fetching body battery…")
-bb = client.get_body_battery(t)
-
-print("Fetching stress…")
-stress = client.get_stress_data(t)
-
-print("Fetching VO2max (today + history)…")
-vo2 = client.get_max_metrics(t)
-vo2_history = client.get_max_metrics_range(jan1, t)  # full year history
-
-print("Fetching race predictions…")
-race_preds = client.get_race_predictions()
-
-print("Fetching lactate threshold…")
-lt = client.get_lactate_threshold()
-
-print("Fetching personal records…")
-prs = client.get_personal_records()
-
-print("Fetching activities (last 100)…")
-activities = client.get_activities(0, 100)
-
-print("Fetching resting HR trend (90 days)…")
-ninety_ago = (today - timedelta(days=90)).isoformat()
-rhr_trend = client.get_resting_heart_rate(t)
-
+# ── Build output ───────────────────────────────────────────────────────────
 now = datetime.utcnow()
 data = {
-    "updated":       t,
-    "updatedTime":   now.strftime("%H:%M"),
-    "updatedISO":    now.isoformat() + "Z",
-    "daily_summary": daily,
-    "sleep":         sleep,
-    "hrv":           hrv,
-    "body_battery":  bb,
-    "stress":        stress,
-    "vo2max":        vo2,
-    "vo2max_history": vo2_history,
-    "race_predictions": race_preds,
-    "lactate_threshold": lt,
-    "personal_records": prs,
-    "activities":    activities,
-    "resting_hr":    rhr_trend,
+    "updated":           t,
+    "updatedTime":       now.strftime("%H:%M"),
+    "updatedISO":        now.isoformat() + "Z",
+    "daily_summary":     daily      or {},
+    "sleep":             sleep      or {},
+    "hrv":               hrv        or {},
+    "body_battery":      bb         or [],
+    "stress":            stress     or {},
+    "vo2max":            vo2        or {},
+    "lactate_threshold": lt         or [],
+    "activities":        activities or [],
 }
 
 os.makedirs("public", exist_ok=True)
 with open("public/garmin_data.json", "w") as f:
     json.dump(data, f)
 
-print(f"✅ Done — {len(activities)} activities, saved to public/garmin_data.json")
+act_count = len(activities) if activities else 0
+print(f"Done — {act_count} activities saved to public/garmin_data.json")
+print(f"Timestamp: {now.strftime('%Y-%m-%d %H:%M')} UTC")

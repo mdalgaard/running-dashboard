@@ -901,30 +901,48 @@ function selectReadiness(val, el){
   el.classList.add('selected');
 }
 
-function submitCheckin(){
-  if(!checkinReadiness){ alert('Please select how you feel first.'); return; }
+async function loadCheckins() {
+  try {
+    const r = await fetch('./checkins.json?t=' + Date.now());
+    const entries = await r.json();
+    renderCheckinHistory(entries);
+  } catch(e) {
+    renderCheckinHistory([]);
+  }
+}
+  
+async function submitCheckin() {
+  if (!checkinReadiness) { alert('Please select how you feel first.'); return; }
   const note = document.getElementById('checkin-note').value;
-  const entry = {date:new Date().toISOString().split('T')[0],time:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}),feel:checkinReadiness,note};
-  const existing = JSON.parse(localStorage.getItem('checkins')||'[]');
-  existing.unshift(entry);
-  if(existing.length>30) existing.pop();
-  localStorage.setItem('checkins', JSON.stringify(existing));
-  checkinReadiness=null;
-  document.querySelectorAll('.rb').forEach(b=>b.classList.remove('selected'));
-  document.getElementById('checkin-note').value='';
-  renderCheckinHistory();
+  const btn = document.querySelector('.checkin-submit');
+  btn.textContent = 'Saving…'; btn.disabled = true;
+
+  try {
+    await fetch('/api/checkin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ feel: checkinReadiness, note })
+    });
+    checkinReadiness = null;
+    document.querySelectorAll('.rb').forEach(b => b.classList.remove('selected'));
+    document.getElementById('checkin-note').value = '';
+    // Re-fetch checkins.json to show the new entry
+    await loadCheckins();
+  } catch(e) {
+    alert('Save failed — check your Vercel function logs.');
+  }
+  btn.textContent = 'Save check-in'; btn.disabled = false;
 }
 
-function renderCheckinHistory(){
-  const entries = JSON.parse(localStorage.getItem('checkins')||'[]');
-  const feelLabels={great:'🟢 Ready to race',good:'🔵 Good',ok:'🟡 Moderate',tired:'🔴 Tired',injured:'🟣 Niggle'};
-  const feelColors={great:'col-good',good:'col-blue',ok:'col-warn',tired:'col-red',injured:'col-purple'};
-  document.getElementById('checkin-history').innerHTML = entries.slice(0,10).map(e=>`
+function renderCheckinHistory(entries) {
+  const feelLabels = { great:'🟢 Ready to race', good:'🔵 Good', ok:'🟡 Moderate', tired:'🔴 Tired', injured:'🟣 Niggle' };
+  const feelColors = { great:'col-good', good:'col-blue', ok:'col-warn', tired:'col-red', injured:'col-purple' };
+  document.getElementById('checkin-history').innerHTML = (entries||[]).slice(0,10).map(e => `
     <div class="checkin-entry">
       <div class="ce-date">${e.date}<br><span style="font-size:9px;">${e.time}</span></div>
       <div>
         <div class="ce-feel ${feelColors[e.feel]||''}">${feelLabels[e.feel]||e.feel}</div>
-        ${e.note?`<div style="margin-top:2px;color:var(--muted)">${e.note}</div>`:''}
+        ${e.note ? `<div style="margin-top:2px;color:var(--muted)">${e.note}</div>` : ''}
       </div>
     </div>`).join('') || '<div style="color:var(--muted);font-family:var(--mono);font-size:12px;">No check-ins yet.</div>';
 }
